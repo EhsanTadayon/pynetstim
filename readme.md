@@ -1,6 +1,8 @@
 PyNetStim: Brain Network Stimulation in Python
 ===============================================
 
+<img src='./docs/temp-log.png' height=300px width=300px style="horizontal-align:middle">
+
 pynetstim is aiming to create an integrated framework for brain network stimulation and stimulation targeting.
 
 ## Major goal: 
