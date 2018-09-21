@@ -5,7 +5,7 @@ pynetstim is aiming to create an integrated framework for brain network stimulat
 
 ## Major goal: 
 
-The main goal of pynetstim is to provide a framework for <b> individualizing stimulation sites by integrating computational modeling, multimodal imaging as well as stimulation simulation</b>.
+The main goal of pynetstim is to provide a framework for ** individualizing stimulation sites by integrating computational modeling, multimodal imaging as well as stimulation simulation**.
 
 
 ## Minor goals:
