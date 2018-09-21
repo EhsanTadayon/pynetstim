@@ -2,6 +2,9 @@
 miscellaneous functions and classes for pynetstim projects
 """
 
+import pandas as pd
+
+
 
 class BrainsightSessionFile(object):
     
@@ -13,45 +16,24 @@ class BrainsightSessionFile(object):
         self.out_dir = out_dir
         
         
-        f = open(self.bs_session_file,'r').read().split('\n')
-        tables = [(i,header) for i,header in enumerate(f) if '# ' in header]  #### finding where sub-tables start
-        tables = tables + [(len(f),'# End')]
+        self.f = open(self.bs_session_file,'r').read().split('\n')
+        self.tables = [(i,header) for i,header in enumerate(self.f) if '# ' in header]  #### finding where sub-tables start
+        self.tables = self.tables + [(len(self.f),'# End')]
         
         # target table 
-        s,e = self._find_start_and_end(tables,'Target')
-        targets = f[s:e]
-        targets = [x for x in targets if 'Sample' not in x]
-        g = open('{out_dir}/Targets.txt'.format(out_dir=out_dir),'w')
-        g.write('\n'.join(targets))
-        g.close()
-        
+        self._parse_table('Target','targets.txt',exclusion='Sample')
+    
         # Samples
-        s,e = self._find_start_and_end(tables,'Sample')
-        samples = f[s:e]
-        g = open('{out_dir}/Samples.txt'.format(out_dir=out_dir),'w')
-        g.write('\n'.join(samples))
-        g.close()
+        self._parse_table('Sample','samples.txt')
         
         # Electrodes
-        s,e = self._find_start_and_end(tables,'Electrode')
-        electrodes = f[s:e]
-        g = open('{out_dir}/Electrodes.txt'.format(out_dir=out_dir),'w')
-        g.write('\n'.join(electrodes))
-        g.close()
+        self._parse_table('Electrode','electrodes.txt')
         
         # planned landmarks
-        s,e = self._find_start_and_end(tables,'Planned Landmark')
-        planned_landmarks = f[s:e]
-        g = open('{out_dir}/PlannedLandmarks.txt'.format(out_dir=out_dir),'w')
-        g.write('\n'.join(planned_landmarks))
-        g.close()
+        self._parse_table('Planned Landmark','planned_landmarks.txt')
         
         # session landmark
-        s,e = self._find_start_and_end(tables,'Session Landmark')
-        session_landmarks = f[s:e]
-        g = open('{out_dir}/SessionLandmarks.txt'.format(out_dir=out_dir),'w')
-        g.write('\n'.join(session_landmarks))
-        g.close()
+        self._parse_table('Session Landmark','session_landmarks.txt')
         
     
     def _find_start_and_end(self,tables,table):
@@ -62,8 +44,30 @@ class BrainsightSessionFile(object):
                 e = tables[i+1][0]
                 return s,e
                 
+    def _parse_table(self,table,outname,exclusion=None):
+
+        s,e = self._find_start_and_end(self.tables,table)
+        header = self._clean_header(self.f[s])
+        rows = [header] + self.f[s+1:e]
+        if exclusion:
+            rows = [x for x in rows if exclusion not in x]
+        
+        g = open('{out_dir}/{outname}'.format(out_dir=self.out_dir,outname=outname),'w')
+        g.write('\n'.join(rows))
+        g.close()
+        
+        
+    def _clean_header(self,header):
+        
+        header = header.replace('.','')
+        header = header.replace('# ','')
+        header = header.replace(' ','_')
+        header = header.lower()
+        return header
+                
     def get_table(self,table):
-        df = pd.read_table()
+        df = pd.read_table('{out_dir}/{table}.txt'.format(out_dir=self.out_dir, table = table))
+        return df
 
         
         
