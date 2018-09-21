@@ -49,7 +49,7 @@ class Coords(object):
     """ A class that gets RAS coordinate as input and enables converting between RAS, tkrRAS and voxel coordinates in native and freesurfer space
     
     """
-    def __init__(self,ras_coords, subject, fs_subjects_dir=None):
+    def __init__(self,ras_coords, subject, fs_subjects_dir=None, guess_hemi=True):
         
         self.subject = subject
         self.fs_subjects_dir = fs_subjects_dir
@@ -77,17 +77,18 @@ class Coords(object):
             self.coords['tkr-ras_coords'] = self._get_freesurfer_tkr_ras()
             
             
-            self.hemis = []
-            for s in np.arange(self.npoints):
+            if guess_hemi:
+                self.hemis = []
+                for s in np.arange(self.npoints):
                 
-                if self.coords['freesurfer_voxels'][s,:][0] > 128: 
-                    self.hemis.append('lh')
+                    if self.coords['freesurfer_voxels'][s,:][0] > 128: 
+                        self.hemis.append('lh')
                 
-                elif self.coords['freesurfer_voxels'][s,:][0] < 128:
-                    self.hemis.append('rh')
+                    elif self.coords['freesurfer_voxels'][s,:][0] < 128:
+                        self.hemis.append('rh')
                 
-                else:
-                    raise 'Could not determine hemisphere'
+                    else:
+                        raise 'Could not determine hemisphere'
                     
                     
         
@@ -150,6 +151,8 @@ class Coords(object):
         
     def map_to_surface(self, surf):
         
+        """ surf here is a freesurfer surface file. It supports pial, white or inflated for now. """
+        
         if not self.fs_subjects_dir:
             raise ValueError('Freesurfer fs_subjects_dir has not been provided!')
         
@@ -159,6 +162,7 @@ class Coords(object):
         point_coords = np.atleast_2d(self.coords['tkr-ras_coords'])
         
         if surf in ['pial','white']:
+            
             lh_surf_coords = Surf('lh', surf, self.subject, self.fs_subjects_dir).read_geometry()[0]
             rh_surf_coords = Surf('rh',surf,self.subject, self.fs_subjects_dir).read_geometry()[0]
             
