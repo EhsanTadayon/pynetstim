@@ -5,16 +5,20 @@ miscellaneous functions and classes for pynetstim projects
 import pandas as pd
 import numpy as np
 from collections import defaultdict
-
+import os
 
 class BrainsightSessionFile(object):
     
     """ reading and parsing brainsight session output file, currently outputs: targets, samples, electrodes, planned landmarks, and session landmarks"""
     
-    def __init__(self,bs_session_file, out_dir):
+    def __init__(self,bs_session_file,base_name='', out_dir='.'):
     
         self.bs_session_file = bs_session_file
-        self.out_dir = out_dir
+        self.base_name = base_name
+        self.out_dir = os.path.abspath(out_dir)
+        if not os.path.exists(self.out_dir):
+            os.makedirs(self.out_dir)
+         
         
         
         self.f = open(self.bs_session_file,'r').read().split('\n')
@@ -22,19 +26,19 @@ class BrainsightSessionFile(object):
         self.tables = self.tables + [(len(self.f),'# End')]
         
         # target table 
-        self._parse_table('Target','targets.txt',exclusion='Sample')
+        self._parse_table('Target',self.base_name+'targets.txt',exclusion='Sample')
     
         # Samples
-        self._parse_table('Sample','samples.txt')
+        self._parse_table('Sample',self.base_name+'samples.txt')
         
         # Electrodes
-        self._parse_table('Electrode','electrodes.txt')
+        self._parse_table('Electrode',self.base_name+'electrodes.txt')
         
         # planned landmarks
-        self._parse_table('Planned Landmark','planned_landmarks.txt')
+        self._parse_table('Planned Landmark',self.base_name+'planned_landmarks.txt')
         
         # session landmark
-        self._parse_table('Session Landmark','session_landmarks.txt')
+        self._parse_table('Session Landmark',self.base_name+'session_landmarks.txt')
         
     
     def _find_start_and_end(self,tables,table):
