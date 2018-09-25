@@ -88,9 +88,8 @@ class Samples(object):
     def __init__(self,samples_file, print_summary=True):
         
         self.samples_file = samples_file
-        self.samples_df = pd.read_table(samples_file)
-        
-        self.sessions_names = np.unique(self.samples_df.session_name)
+        self._load_dataframe()
+        self.sessions_names = np.unique(self.df.session_name)
         self.sessions = defaultdict(dict)
         
         for session in self.sessions_names:
@@ -102,9 +101,17 @@ class Samples(object):
         if print_summary:
             self.summary()
             
+    def _load_dataframe(self):
+        self.df = pd.read_table(self.samples_file)
+        numeric_columns = [u'loc_x',
+       u'loc_y', u'loc_z', u'm0n0', u'm0n1', u'm0n2', u'm1n0', u'm1n1',
+       u'm1n2', u'm2n0', u'm2n1', u'm2n2', u'dist_to_target', u'target_error',
+       u'angular_error', u'twist_error']
+        self.df[numeric_columns] = self.df[numeric_columns].apply(pd.to_numeric,errors='coerce')
+            
     def _load_session(self,session):
         
-        session_samples = self.samples_df[(self.samples_df.session_name==session)]
+        session_samples = self.df[(self.df.session_name==session)]
         session_targets = np.unique(session_samples.assoc_target)
         session_targets = [target for target in session_targets if 'Sample' not in target]
         stims_sequence = {}
@@ -132,7 +139,7 @@ class Samples(object):
             
     def get_target(self,target,session=None, chunk=None):
         if not session: 
-            return self.samples[self.samples.assoc_target==target]
+            return self.df[self.df.assoc_target==target]
         
         else:
             session_samples = self.sessions[session]['samples']
@@ -140,7 +147,7 @@ class Samples(object):
                 return session_samples[session_samples.assoc_target==target]
             else:
                 try:
-                    start,end = self.sessions[session]['targets_stims'][target][chunk-1]
+                    start,end = self.df[session]['targets_stims'][target][chunk-1]
                     return session_samples[session]['samples'].iloc[start:end]
                 except:
                     raise ValueError('chunk exceeds the range')
