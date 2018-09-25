@@ -5,7 +5,7 @@
 import nibabel as nib
 import numpy as np
 from scipy.spatial.distance import cdist
-
+import os
 ## to do list:
 
 
@@ -17,7 +17,7 @@ class Surf():
     
     def __init__(self,surf_file):
         
-        self.surf_file = surf_file
+        self.surf_file = os.path.abspath(surf_file)
         self.vertices, self.faces = self.read_geometry()
 
     def read_geometry(self):
@@ -26,16 +26,16 @@ class Surf():
         return vertices, faces
     
     def project_coords(self,coords):
-        
+        coords = np.atleast_2d(coords)
         indices = np.argmin(cdist(self.vertices, coords), axis=0)
-        return vertices[indices,:]
+        return self.vertices[indices,:]
     
 class FreesurferSurf(Surf):
     
     def __init__(self,hemi,surf, subject,subjects_dir):
         
         self.subject = subject
-        self.subjects_dir = subjects_dir
+        self.subjects_dir = os.path.abspath(subjects_dir)
         self.surf = surf
         self.hemi = hemi
         
