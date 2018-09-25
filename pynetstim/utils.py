@@ -6,126 +6,109 @@ import nibabel as nib
 import numpy as np
 from scipy.spatial.distance import cdist
 
-############################## Freesurfer files
+## to do list:
 
 
-class FreesurferFile(object):
-    def __init__(self, subject, fs_subjects_dir):
-        self.subject = subject
-        self.fs_subjects_dir = fs_subjects_dir
-        
 
-class Surf(FreesurferFile):
+
+############################## Surf class
+
+class Surf():
     
-    def __init__(self,hemi, surf, subject, fs_subjects_dir):
+    def __init__(self,surf_file):
         
-        FreesurferFile.__init__(self, subject,fs_subjects_dir)
+        self.surf_file = surf_file
+        self.vertices, self.faces = self.read_geometry()
+
+    def read_geometry(self):
+        
+        vertices, faces = nib.freesurfer.read_geometry(self.surf_file)
+        return vertices, faces
+    
+    def project_coords(self,coords):
+        
+        indices = np.argmin(cdist(self.vertices, coords), axis=0)
+        return vertices[indices,:]
+    
+class FreesurferSurf(Surf):
+    
+    def __init__(self,hemi,surf, subject,subjects_dir):
+        
+        self.subject = subject
+        self.subjects_dir = subjects_dir
         self.surf = surf
         self.hemi = hemi
         
-    def read_geometry(self):
-        
-        vertices, faces = nib.freesurfer.read_geometry('{fs_subjects_dir}/{subject}/surf/{hemi}.{surf}'.format(fs_subjects_dir = self.fs_subjects_dir, 
-                                                                                                    subject = self.subject, surf = self.surf, hemi=self.hemi))
-        return vertices, faces
-        
-    def get_closest_vertex(self,tkr_ras_coord):
-        
-        vertices, faces = self.read_geometry()
-        d = []
-        for i in range(vertices.shape[0]):
-            d.append(np.linalg.norm(vertices[i,:] - tkr_ras_coord))
-            
-        vtx_id = np.argmin(d)
-        vtx_coord = vertices[vtx_id,:]
-        return vtx_id, vtx_coord
+        surf_file = '{subjects_dir}/{subject}/surf/{hemi}.{surf}'.format(subjects_dir=subjects_dir, subject = subject, surf=surf, hemi=hemi)
+        Surf.__init__(self,surf_file)
         
         
-############################# Working with coordinates
+############################# Working with coordinates######################
+### two classes have been implemented to work with coordinates. 1) Coords class which is more general class that could take care of coordinate in any volume 2) FreesurferCooords which inherits from Coords but requires a subject that has been processed by recon-all.
 
 
-class Coords(object):
+class Coords():
     
-    """ A class that gets RAS coordinate as input and enables converting between RAS, tkrRAS and voxel coordinates in native and freesurfer space
-    
-    """
-    def __init__(self,ras_coords, subject, fs_subjects_dir=None, guess_hemi=True):
+    def __init__(self,coords, img_file, type='ras'):
+        """ coordinate class"""
         
+        self.img_file = img_file
+        self.type = type
+        self.img = nib.load(img_file)
+        self.vox2ras = self.img.affine
+        self.ras2vox = np.linalg.inv(self.vox2ras)
+        self.npoints = coords.shape[0]
+        self.coordinates = {}
+        self._affineM = np.hstack((coords, np.ones((coords.shape[0],1)))).T
+        if type=='ras':
+            self.coordinates['ras_coords'] = coords
+            self.coordinates['voxel_coords'] = np.round(np.dot(self.ras2vox,self._affineM).T[:,:3])
+        else:
+            self.coordinates['voxel_coords'] = coords
+            self.coordinates['ras_coords'] = np.dot(self.vox2ras,self._affineM).T[:,:3]
+    
+    def img2imgcoord(self,img):
+        pass
+    
+    
+class FreesurferCoords(Coords):
+    
+    def __init__(self,coords,subject,subjects_dir,guess_hemi=True):
+        """ Freesurfer Coordinate class"""
+        
+        self.subjects_dir = subjects_dir
         self.subject = subject
-        self.fs_subjects_dir = fs_subjects_dir
+        rawavg_file = '{subjects_dir}/{subject}/mri/rawavg.mgz'.format(subjects_dir=subjects_dir,subject=subject)
+
+        Coords.__init__(self, coords, rawavg_file,type='ras')
         
-        ras_coords = np.atleast_2d(ras_coords)
-        if ras_coords.shape[1]!=3:
-            raise ValueError('RAS coordinate should be 3-Dimensional.')
-         
-         
-        ## number of points provided  
-        self.npoints = ras_coords.shape[0]
+        orig_file = '{subjects_dir}/{subject}/mri/orig.mgz'.format(subjects_dir=subjects_dir,subject=subject)
+        self.orig_img = nib.freesurfer.load(orig_file)
+        self.ras2fsvox = self.orig_img.header.get_ras2vox()
+        self.fsvox2ras_tkr = self.orig_img.header.get_vox2ras_tkr()
+        self.coordinates['ras_tkr_coords'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox,self._affineM)).T[:,:3]
+        self.coordinates['fsvoxel_coords'] = np.round(np.dot(self.ras2fsvox,self._affineM).T[:,:3])
+        self.coordinates['talairach'] = self._get_talairach_coords()
         
-        ## get the voxel coordinates in the native space
-        self.coords = {}
-        self.coords['ras_coords'] = ras_coords
-        self._pointsM = np.hstack((self.coords['ras_coords'], np.ones((self.npoints, 1)))).T
-        self.coords['voxels'] = self._get_native_voxels()
-        
+        if guess_hemi:
+            self._guess_hemi()
             
-        ### get the freesurfer corresponding voxels and tkrRAS coordinate    
-        if fs_subjects_dir:
-            
-            self.coords['talairachs'] = self._get_talairach_coords()
-            self.coords['freesurfer_voxels'] = self._get_freesurfer_voxels()
-            self.coords['tkr-ras_coords'] = self._get_freesurfer_tkr_ras()
-            
-            
-            if guess_hemi:
-                self.hemis = []
-                for s in np.arange(self.npoints):
-                
-                    if self.coords['freesurfer_voxels'][s,:][0] > 128: 
-                        self.hemis.append('lh')
-                
-                    elif self.coords['freesurfer_voxels'][s,:][0] < 128:
-                        self.hemis.append('rh')
-                
-                    else:
-                        raise 'Could not determine hemisphere'
-                    
+    def _guess_hemi(self):
+        self.hemis = []
+        for s in np.arange(self.npoints):
+            if self.coordinates['fsvoxel_coords'][s,0]> 128: 
+                 self.hemis.append('lh')   
+            elif self.coordinates['fsvoxel_coords'][s,0] < 128:
+                 self.hemis.append('rh')   
+            else:
+                 raise 'Could not determine hemisphere'
                     
         
-    def _get_native_voxels(self):
-        rawObj = nib.load('{fs_subjects_dir}/{subject}/mri/rawavg.mgz'.format(fs_subjects_dir = self.fs_subjects_dir,
-                                                                          subject = self.subject))
-        ras2vox = rawObj.header.get_ras2vox()                                                        
-        native_voxels = np.dot(ras2vox,self._pointsM).T[:,:3].astype(np.double)
-        native_voxels = np.around(native_voxels)
-        return native_voxels
-    
-        
-    def _get_freesurfer_tkr_ras(self):
-
-        origObj = nib.load('{fs_subjects_dir}/{subject}/mri/orig.mgz'.format(fs_subjects_dir = self.fs_subjects_dir,
-                                                                          subject =self.subject))
-        ras2vox = origObj.header.get_ras2vox()
-        vox2ras_tkr = origObj.header.get_vox2ras_tkr()
-        freesurfer_ras_tkr = np.dot(vox2ras_tkr,np.dot(ras2vox,self._pointsM)).T[:,:3]
-        return freesurfer_ras_tkr
-        
-        
-    
-    def _get_freesurfer_voxels(self):
-        
-        origObj = nib.load('{fs_subjects_dir}/{subject}/mri/orig.mgz'.format(fs_subjects_dir = self.fs_subjects_dir,
-                                                                         subject = self.subject))
-        ras2vox = origObj.header.get_ras2vox()
-
-        fs_voxel = np.dot(ras2vox,self._pointsM).T[:,:3]
-        fs_voxel = np.round(fs_voxel)
-        return fs_voxel
-        
-    
     def _read_talaraich_transformation(self):
+        """ read talairach transformation from freesurfer talairach.xfm output"""
         
-        fname = '{fs_subjects_dir}/{subject}/mri/transforms/talairach.xfm'.format(fs_subjects_dir=self.fs_subjects_dir,subject=self.subject)
+        fname = '{subjects_dir}/{subject}/mri/transforms/talairach.xfm'.format(subjects_dir=self.subjects_dir,
+                                                                               subject=self.subject)
         f = open(fname,'r').read().split('\n')
         
         ### cleaning rows of file
@@ -144,54 +127,10 @@ class Coords(object):
         return np.array(rows)
     
     def _get_talairach_coords(self):
-        
+        """ transforms the coordinates by talairach transform matrix from freesurfer talairach.xfm"""
         talairach_tr = self._read_talaraich_transformation()
-        return np.dot(talairach_tr,self._pointsM).T[:,:3]
+        return np.dot(talairach_tr,self._affineM).T[:,:3]
         
-        
-    def map_to_surface(self, surf):
-        
-        """ surf here is a freesurfer surface file. It supports pial, white or inflated for now. """
-        
-        if not self.fs_subjects_dir:
-            raise ValueError('Freesurfer fs_subjects_dir has not been provided!')
-        
-        mapped_coords = np.zeros((self.npoints,3))
-        lh_idx = np.array(self.hemis)=='lh'
-        rh_idx = np.logical_not(lh_idx)
-        point_coords = np.atleast_2d(self.coords['tkr-ras_coords'])
-        
-        if surf in ['pial','white']:
-            
-            lh_surf_coords = Surf('lh', surf, self.subject, self.fs_subjects_dir).read_geometry()[0]
-            rh_surf_coords = Surf('rh',surf,self.subject, self.fs_subjects_dir).read_geometry()[0]
-            
-            lh_vtx_id = np.argmin(cdist(lh_surf_coords, point_coords[lh_idx,:]), axis=0)
-            rh_vtx_id = np.argmin(cdist(rh_surf_coords, point_coords[rh_idx,:]), axis=0)
-
-            mapped_coords[lh_idx,:] = lh_surf_coords[lh_vtx_id,:]
-            mapped_coords[rh_idx,:] = rh_surf_coords[rh_vtx_id,:]
-            
-            
-        elif surf=='inflated':
-            
-            lh_white_coords = Surf('lh', 'white', self.subject, self.fs_subjects_dir).read_geometry()[0]
-            rh_white_coords = Surf('rh', 'white',self.subject, self.fs_subjects_dir).read_geometry()[0]
-            
-            lh_vtx_id = np.argmin(cdist(lh_white_coords, point_coords[lh_idx,:]), axis=0)
-            rh_vtx_id = np.argmin(cdist(rh_white_coords, point_coords[rh_idx,:]), axis=0)
-            
-            lh_inflated_coords = Surf('lh', 'inflated', self.subject, self.fs_subjects_dir).read_geometry()[0]
-            rh_inflated_coords = Surf('rh', 'inflated', self.subject, self.fs_subjects_dir).read_geometry()[0]
-            
-            mapped_coords[lh_idx,:] = lh_inflated_coords[lh_vtx_id,:]
-            mapped_coords[rh_idx,:] = lh_inflated_coords[rh_vtx_id,:]
-            
-        else:
-            
-            raise ValueError('Surface should be only white, pial or inflated')
-        
-        return mapped_coords
 
 
-            
+        
