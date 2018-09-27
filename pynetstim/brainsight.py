@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 from collections import defaultdict
 import os
+from utils import Coords
+
 
 class BrainsightSessionFile(object):
     
@@ -71,47 +73,53 @@ class BrainsightSessionFile(object):
         return header
                 
 
-class Targets(object):
+class BrainsightTargets():
     
     def __init__(self, targets_file):
         self.targets_file = targets_file 
-        self.targets_df = pd.read_table(targets_file)
-        self.targets_names = np.unique(self.targets_df.target_name)
-        
-    def get_targets_coords(self,targets):
+        self._df = pd.read_table(targets_file)
+        self.names = np.unique(self._df.target_name)
       
-        return self.targets_df[self.targets_df.target_name.apply(lambda x: x in targets)][['loc_x','loc_y','loc_z']].values
         
+    def get_coords(self,targets=None):
+        if targets is None:
+            targets = self.names
         
-class Samples(object):
+        return self._df[self._df.target_name.apply(lambda x: x in targets)][['loc_x','loc_y','loc_z']].values
+        
+    def get_table(self):
+        return self._df.copy()
     
-    def __init__(self,samples_file, print_summary=True):
+        
+class BrainsightSamples(object):
+    
+    def __init__(self,samples_file):
         
         self.samples_file = samples_file
+        self._dirname = os.path.dirname(self.samples_file)
         self._load_dataframe()
-        self.sessions_names = np.unique(self.df.session_name)
-        self.sessions = defaultdict(dict)
+        self.sessions_names = np.unique(self._df.session_name)
+        self._sessions = defaultdict(dict)
         
         for session in self.sessions_names:
-            session_samples, stims_sequence, targets_stims = self._load_session(session)
-            self.sessions[session]['samples'] = session_samples
-            self.sessions[session]['stims_sequence'] = stims_sequence
-            self.sessions[session]['targets_stims'] = targets_stims
+            session_samples, stims_sequence, targets_stims, session_targets = self._load_session(session)
+            self._sessions[session]['samples'] = session_samples
+            self._sessions[session]['stims_sequence'] = stims_sequence
+            self._sessions[session]['targets_stims'] = targets_stims
+            self._sessions[session]['targets'] = session_targets
         
-        if print_summary:
-            self.summary()
             
     def _load_dataframe(self):
-        self.df = pd.read_table(self.samples_file)
+        self._df = pd.read_table(self.samples_file)
         numeric_columns = [u'loc_x',
        u'loc_y', u'loc_z', u'm0n0', u'm0n1', u'm0n2', u'm1n0', u'm1n1',
        u'm1n2', u'm2n0', u'm2n1', u'm2n2', u'dist_to_target', u'target_error',
        u'angular_error', u'twist_error']
-        self.df[numeric_columns] = self.df[numeric_columns].apply(pd.to_numeric,errors='coerce')
+        self._df[numeric_columns] = self._df[numeric_columns].apply(pd.to_numeric,errors='coerce')
             
     def _load_session(self,session):
         
-        session_samples = self.df[(self.df.session_name==session)]
+        session_samples = self._df[(self._df.session_name==session)]
         session_targets = np.unique(session_samples.assoc_target)
         session_targets = [target for target in session_targets if 'Sample' not in target]
         stims_sequence = {}
@@ -133,41 +141,43 @@ class Samples(object):
                 
             targets_stims[target] = zip(starts,ends)
             
-        return session_samples, stims_sequence, targets_stims
+        return session_samples, stims_sequence, targets_stims, session_targets
         
-        
+    
+    def get_samples(self,session=None):
+        if session is None:
+            return self._df.copy()
             
-    def get_target(self,target,session=None, chunk=None):
+        else:
+            return self._sessions[session]['samples']
+        
+    def get_stims_sequence(self,session):
+        return self._sessions[session]['stims_sequence']
+        
+    def get_targets(self, session):
+        return self._sessions[session]['targets']
+                
+    def get_target_stims(self,target,session=None, chunk=None):
+        
         if not session: 
-            return self.df[self.df.assoc_target==target]
+            return self._df[self._df.assoc_target==target]
         
         else:
-            session_samples = self.sessions[session]['samples']
+            session_samples = self.get_samples(session)
+            
             if not chunk:
                 return session_samples[session_samples.assoc_target==target]
+                
             else:
                 try:
-                    start,end = self.df[session]['targets_stims'][target][chunk-1]
-                    return session_samples[session]['samples'].iloc[start:end]
+                    start,end = self._df[session]['targets_stims'][target][chunk-1]
+                    return session_samples.iloc[start:end]
                 except:
                     raise ValueError('chunk exceeds the range')
                 
-    def summary(self):
-        
-        """ write summary of samples """
-        
-        print 'Number of sessions: ', len(self.sessions_names)
-        print '======================'
-        for session in self.sessions_names:
-            message=session+'\n' + '------------\n'
-            targets = np.unique(self.sessions[session]['targets_stims'].keys())
-            message+= 'Session targets: ' + ','.join(targets)+'\n\n'
-            sequences = self.sessions[session]['stims_sequence'].keys()
-            sequences = sorted(sequences)
-            for s in sequences:
-                t = self.sessions[session]['stims_sequence'][s]
-                message+= '\t-> Target: '+ t + ' (start:' + str(s[0])+ ', end:' + str(s[1]) + ', stimulations:' + str(s[1]-s[0]+1)+')\n\n'
-            print message
+
+
+
 
         
             
