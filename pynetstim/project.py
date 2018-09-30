@@ -55,6 +55,7 @@ class StimProject(object):
 
 
     def _to_mni(self):
+       
         pass ## TO DO
         
     def _read_brainsight_file(self):
