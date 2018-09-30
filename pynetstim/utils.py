@@ -119,6 +119,9 @@ class Coords():
         else:
             self.coordinates['voxel_coords'] = coords
             self.coordinates['ras_coords'] = np.dot(self.vox2ras,self._affineM).T[:,:3]
+            
+        self._count=0
+     
     
     def img2imgcoord(self, dest_img, warp_file):
        
@@ -138,6 +141,20 @@ class Coords():
         
         return res
         
+    def __iter__(self):
+        return self
+    
+    def next(self):
+        
+        if self._count>=self.npoints:
+            self._count = 0
+            raise StopIteration
+            
+        else:
+            c = _Coord(ras_coord,voxel_coord)
+            self._count+=1
+            return c
+        
     
     
 class MNICoords(Coords):
@@ -146,6 +163,8 @@ class MNICoords(Coords):
         
         mni_file = os.path.join(mni_directory,mni_tmeplate)
         Coords.__init__(self,coords,mni_file)
+        
+            
         
     
     
@@ -217,6 +236,54 @@ class FreesurferCoords(Coords):
         """ transforms the coordinates by talairach transform matrix from freesurfer talairach.xfm"""
         talairach_tr = self._read_talaraich_transformation()
         return np.dot(talairach_tr,self._affineM).T[:,:3]
+        
+        
+    def __iter__(self):
+        return self
+        
+    def next(self):
+        
+        if self._count>=self.npoints:
+            self._count = 0
+            raise StopIteration
+        else:
+            t = _FreesurferCoord(ras_coord = self.coordinates['ras_coords'][self._count,:],
+                           voxel_coord = self.coordinates['voxel_coords'][self._count],
+                           ras_tkr_coord = self.coordinates['ras_tkr_coords'][self._count,:],
+                           fsvoxel_coord = self.coordinates['fsvoxel_coords'][self._count],
+                           hemi = self.hemis[self._count])
+                       
+            self._count +=1
+            return t
+            
+
+
+#### class _Coord and _FreesurferCoord
+
+class _Coord(object):
+    def __init__(self, ras_coord, voxel_coord):
+        self.ras_coord = ras_coord
+        self.voxel_coord = voxel_coord
+        
+
+
+class _FreesurferCoord(object):
+    def __init__(self,ras_coord, voxel_coord, ras_tkr_coord, fsvoxel_coord, hemi):
+        self.ras_coord = ras_coord
+        self.voxel_coord = voxel_coord
+        self.ras_tkr_coord = ras_tkr_coord
+        self.fsvoxel_coord = fsvoxel_coord
+        self.hemi = hemi
+
+    
+        
+        
+        
+
+
+
+
+
         
     
     
