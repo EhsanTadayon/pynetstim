@@ -8,18 +8,20 @@ import os
 from pymisc.htmlreport import HtmlDoc
 from mayavi import mlab
 from surfer import Brain
-
+from nipype.interfaces.fsl import FLIRT,FNIRT
 
 
 ## TO DO:
 #### define a Target class ( and brainsight targets will inherit from it) 
 ### define a Sample class ( and BrainsightSamples will inherit from it)
-#### for plot_points, you can speicify map_surface to map your points to a surface and also, you can include ROI for each point 
+#### register the subject to MNI using flirt and fnirt. 
+
 
 class StimProject(object):
     
     """ main stimulation project class"""
-    def __init__(self, subject, freesurfer_dir, project_dir, brainsight_file = None):
+    def __init__(self, subject, freesurfer_dir, project_dir, brainsight_file = None, to_mni=True,
+     mni_template='MNI152_T1_2mm.nii.gz', mni_directory = os.path.join(os.environ['FSLDIR'],'data/standard')):
         
         self.subject = subject
 
@@ -31,26 +33,30 @@ class StimProject(object):
         self.project_dir = project_dir
         self.subject_dir = os.path.join(self.project_dir,subject)
         self.freesurfer_dir = freesurfer_dir
-        self.targets = []
-        
-        
-        
-        
-        
-        self._start_project()
         self.brainsight_file = brainsight_file
+        self.targets = []
+    
+        self._start_project()
+        self._to_mni()
         self._read_brainsight_file()
         
     def _start_project(self):
         
         # TO DO: add more folders
         if not os.path.exists(self.subject_dir):
+            
             os.makedirs('{subject_dir}/brainsight'.format(subject_dir=self.subject_dir))
             os.makedirs('{subject_dir}/figures'.format(subject_dir = self.subject_dir))
+            os.makedirs('{subject_dir}/mni'.format(subject_dir = self.subject_dir))
         
         self.brainsight_dir='{subject_dir}/brainsight'.format(subject_dir=self.subject_dir)
         self.figures_dir = '{subject_dir}/figures'.format(subject_dir=self.subject_dir)  
-    
+        self.mni_nonlinear = '{subject_dir}/mni'.format(subject_dir=self.subject_dir)
+
+
+    def _to_mni(self):
+        pass ## TO DO
+        
     def _read_brainsight_file(self):
         
         if self.brainsight_file is not None:
@@ -58,57 +64,19 @@ class StimProject(object):
             self.brainsight_samples = BrainsightSamples('{subject_dir}/brainsight/samples.txt'.format(subject_dir=self.subject_dir))
             self.brainsight_targets = BrainsightTargets('{subject_dir}/brainsight/targets.txt'.format(subject_dir=self.subject_dir))
             
-     
-    def plot_points(self, points, surf, hemi, annot, scale_factor=6, opacity=.5, background='black', img_basename=None, skin=True):
-        
-        # adding brain and annotations
-        brain = Brain(self.subject, surf=surf, hemi=hemi, subjects_dir=self.freesurfer_dir, offset=False, background=background)
-        
-        ## adding skin
-        skin_surf = Surf('{freesurfer_dir}/{subject}/bem/lh.watershed_outer_skin_surface'.format(freesurfer_dir=self.freesurfer_dir, subject=self.subject))
-        mlab.triangular_mesh(skin_surf.vertices[:,0], skin_surf.vertices[:,1], skin_surf.vertices[:,2],skin_surf.faces,opacity=0.2,color=(1,1,0))
-        
-        if hemi in ['lh','rh']:
-            brain.add_annotation(annot, hemi=hemi, borders=False)
-        elif hemi=='both':
-            brain.add_annotation(annot, hemi='lh', borders=False)
-            brain.add_annotation(annot, hemi='rh', borders=False, remove_existing=False)
-        
-        mlab.points3d(points.coordinates['ras_tkr_coords'][:,0], points.coordinates['ras_tkr_coords'][:,1],
-                                                                 points.coordinates['ras_tkr_coords'][:,2], scale_factor=scale_factor, color=(1,0,0),reset_zoom=False, opacity=opacity)
-        
-        
-        
-        if img_basename:
-            brain.save_imageset(prefix='{figures_dir}/img_basename'.format(figures_dir=self.figures_dir),views = ['lat','med','caud','dor'],filetype='png')
-        
-        mlab.show()
-        
-     
-     
-     
-     
-     
-     
-            
-                  
-    
+
     def summary(self):
        
        if self.brainsight_file:
            self._brainsight_summary()
-   
-   
-   
-   
-   
+
     def _brainsight_summary(self):
    
        """ write summary of samples """
-        
 
        html = HtmlDoc('samples summary') 
-       html.add_image('../docs/stim_fig.png',200,800,'middle')
+       logo = os.path.abspath('../docs/logo.png')
+       html.add_image(logo,200,800,'middle')
        html.add_header('h1','Brainsight sessions summary')
        html.add_header('h3','Number of session: %d'%len(self.brainsight_samples.sessions_names))
 
@@ -136,6 +104,5 @@ class StimProject(object):
     
         
     
-        
         
         
