@@ -6,6 +6,9 @@ import nibabel as nib
 import numpy as np
 from scipy.spatial.distance import cdist
 import os
+from nipype.interfaces.fsl import WarpPoints
+import warnings
+
 ## to do list:
 
 
@@ -28,7 +31,11 @@ class Surf():
     def project_coords(self,coords):
         coords = np.atleast_2d(coords)
         indices = np.argmin(cdist(self.vertices, coords), axis=0)
-        return self.vertices[indices,:]
+        return indices, self.vertices[indices,:]
+        
+    def get_coords(self,vertices_num):
+        
+        return self.vertices[vertices_num]
     
 class FreesurferSurf(Surf):
     
@@ -43,8 +50,54 @@ class FreesurferSurf(Surf):
         Surf.__init__(self,surf_file)
         
         
+################################ Freesurfer annotation       
+    
+class Annot(object):
+    
+    def __init__(self,hemi, annot, subject, subjects_dir):
+        
+        self.hemi = hemi
+        self.annot = annot
+        self.subject = subject
+        self.subjects_dir = subjects_dir
+        self._labels, self._ctab, self._structures = nib.freesurfer.read_annot('{subjects_dir}/{subject}/label/{hemi}.{annot}.annot'.format(subjects_dir=subjects_dir, subject=subject, annot=annot, hemi=self.hemi))
+       
+        
+    def get_ctab(self):
+        return self._ctab
+        
+    def get_labels(self):
+        return self._labels
+        
+    def get_structures(self):
+        return self._structures
+        
+    def get_vertices(self,vertices):
+        
+        labels = self._labels[vertices]
+        colors = [self._ctab[x][:3]/255.0 for x in labels]
+        structures = [self._structures[x] for x in labels]
+        return colors,structures
+        
+    def map_coords(self, coords, map_surface='white'):
+        
+        # first map your coords to surface
+        if map_surface in ['white','pial']:
+            map_surface = FreesurferSurf(self.hemi, map_surface, self.subject, self.subjects_dir)
+            
+        elif isinstance(map_surface,FreesurferSurf):
+            pass
+        else:
+            raise ValueError('map_surface should be either string(white, pial) or FreesurferSurf instance')
+        
+        mapped_vertices_indices, mapped_vertices_coords = map_surface.project_coords(coords)
+        return self.get_vertices(mapped_vertices_indices)
+    
+
+        
+        
 ############################# Working with coordinates######################
-### two classes have been implemented to work with coordinates. 1) Coords class which is more general class that could take care of coordinate in any volume 2) FreesurferCooords which inherits from Coords but requires a subject that has been processed by recon-all.
+### 
 
 
 class Coords():
@@ -67,8 +120,33 @@ class Coords():
             self.coordinates['voxel_coords'] = coords
             self.coordinates['ras_coords'] = np.dot(self.vox2ras,self._affineM).T[:,:3]
     
-    def img2imgcoord(self,img):
-        pass
+    def img2imgcoord(self, dest_img, warp_file):
+       
+        np.savetxt('./temp_coords.txt',self.coordinates['ras_coords'])
+        warppoints = WarpPoints()
+        warppoints.inputs.in_coords = './temp_coords.txt'
+        warppoints.inputs.src_file = self.img_file
+        warppoints.inputs.dest_file = dest_img
+        warppoints.inputs.warp_file = warp_file
+        warppoints.inputs.coord_mm = True
+        res = warppoints.run()
+        res = np.loadtxt('./temp_coords_warped.txt')
+        
+        ## removing the files
+        os.remove('./temp_coords.txt')
+        os.remove('./temp_coords_warped.txt')
+        
+        return res
+        
+    
+    
+class MNICoords(Coords):
+    
+    def __init__(self,coords,mni_template='MNI152_T1_2mm.nii.gz',mni_directory=os.environ['FSLDIR']):
+        
+        mni_file = os.path.join(mni_directory,mni_tmeplate)
+        Coords.__init__(self,coords,mni_file)
+        
     
     
 class FreesurferCoords(Coords):
@@ -95,13 +173,22 @@ class FreesurferCoords(Coords):
             
     def _guess_hemi(self):
         self.hemis = []
+        self.hemis_not_determined = []
         for s in np.arange(self.npoints):
             if self.coordinates['fsvoxel_coords'][s,0]> 128: 
-                 self.hemis.append('lh')   
+                self.hemis.append('lh')   
             elif self.coordinates['fsvoxel_coords'][s,0] < 128:
-                 self.hemis.append('rh')   
+                self.hemis.append('rh')   
             else:
-                 raise 'Could not determine hemisphere'
+                warnings.warn('Could not determine hemisphere for point {x},{y},{z}. Right hemisphere has been chosen arbitrarily for this point. Manually set the hemisphere for this point by calling set_hemi_manually!'.format(x=self.coordinates['ras_coords'][s,0], y=self.coordinates['ras_coords'][s,1], z=self.coordinates['ras_coords'][s,2]))
+                
+                self.hemis_not_determined.append(s)
+                self.hemis.append('rh')
+                 
+        self.hemis = np.array(self.hemis)
+        
+    def set_hemi_manually(self, n, hemi):
+        self.hemis[n] = hemi
                     
         
     def _read_talaraich_transformation(self):
@@ -121,7 +208,7 @@ class FreesurferCoords(Coords):
         rows = []
         for i in [5,6,7]:
             row = f[i].split(' ')
-            row = map(clean_number,row)
+            row = [clean_number(x) for x in row]
             rows.append(row)
             
         return np.array(rows)
@@ -131,6 +218,10 @@ class FreesurferCoords(Coords):
         talairach_tr = self._read_talaraich_transformation()
         return np.dot(talairach_tr,self._affineM).T[:,:3]
         
+    
+    
+        
+    
 
 
         
