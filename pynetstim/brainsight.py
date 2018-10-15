@@ -1,12 +1,14 @@
 """
-miscellaneous functions and classes for pynetstim projects
+miscellaneous functions and classes to work with Brainsight output
+Author: Ehsan Tadayon, M.D. [sunny.tadayon@gmail.com / stadayon@bidmc.harvard.edu]
 """
 
 import pandas as pd
 import numpy as np
 from collections import defaultdict
 import os
-from utils import Coords
+from coordinates import Coords
+from stims import Targets,_Target
 
 
 class BrainsightSessionFile(object):
@@ -73,18 +75,23 @@ class BrainsightSessionFile(object):
         return header
                 
 
-class BrainsightTargets():
+class BrainsightTargets(Targets):
     
-    def __init__(self, targets_file):
+    def __init__(self, targets_file, subject, freesurfer_dir):
+        
         self.targets_file = targets_file 
         self._df = pd.read_table(targets_file)
-        self.names = np.unique(self._df.target_name)
-      
+            
+        coords = self._df[['loc_x','loc_y','loc_z']].values
+        guess_hemi=True
+        names = self._df['target_name'].values
+        directions = self._df[['m0n0','m0n1','m0n2','m1n0','m1n1','m1n2','m2n0','m2n1','m2n2']].values
+        Targets.__init__(self,coords, subject, freesurfer_dir, names=names, colors=None, directions=directions)
         
     def get_coords(self,targets=None):
         if targets is None:
             targets = self.names
-        
+            
         return self._df[self._df.target_name.apply(lambda x: x in targets)][['loc_x','loc_y','loc_z']].values
         
     def get_table(self):
@@ -119,7 +126,8 @@ class BrainsightSamples(object):
             
     def _load_session(self,session):
         
-        session_samples = self._df[(self._df.session_name==session)]
+        session_samples = self._df[(self._df.session_name==session)].copy()
+        session_samples.index = np.arange(session_samples.shape[0])
         session_targets = np.unique(session_samples.assoc_target)
         session_targets = [target for target in session_targets if 'Sample' not in target]
         stims_sequence = {}
@@ -165,15 +173,15 @@ class BrainsightSamples(object):
         else:
             session_samples = self.get_samples(session)
             
-            if not chunk:
+            if chunk is None:
                 return session_samples[session_samples.assoc_target==target]
                 
             else:
-                try:
-                    start,end = self._df[session]['targets_stims'][target][chunk-1]
-                    return session_samples.iloc[start:end]
-                except:
-                    raise ValueError('chunk exceeds the range')
+                #try:
+                start,end = self._sessions[session]['targets_stims'][target][chunk]
+                return session_samples.iloc[start:end]
+                #except:
+                    #raise ValueError('chunk exceeds the range')
                 
 
 
