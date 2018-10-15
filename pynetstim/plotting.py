@@ -11,8 +11,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-def plot_targets(targets, hemi, surf, map_surface= None, annot=None, map_to_annot = None, show_rois=False, scale_factor=.8, show_names=False, opacity=1, background='black',
-                img_basename=None, skin=True):
+def plot_targets(targets, hemi, surf='pial', map_surface= None, annot=None, map_to_annot = None, show_rois=False, scale_factor=.8, show_names=False, show_directions=False, opacity=1,
+ background='black', img_basename=None, skin=True):
     
     # adding brain and annotations
     brain = Brain(targets.subject, surf=surf, hemi=hemi, subjects_dir=targets.subjects_dir, offset=False, background=background)
@@ -45,10 +45,18 @@ def plot_targets(targets, hemi, surf, map_surface= None, annot=None, map_to_anno
                 brain.add_label(target.roi, hemi=target.hemi, color=target.roi.color)
             if show_names:
                 mlab.text3d(target.ras_tkr_coord[0],target.ras_tkr_coord[1],target.ras_tkr_coord[2],target.name,scale=4)
-
+            if show_directions:
+                origin = target.ras_tkr_coord.flatten().tolist()
+                X,Y,Z = zip(origin,origin,origin)
+                p0 = target.direction[0:3]
+                p1 = target.direction[3:6]
+                p2 = target.direction[6:9]
+                U,W,V = zip(p0,p1,p2)
+                plot_directions(X,Y,Z,U,W,V)
 
     if img_basename:
         brain.save_imageset(prefix='{figures_dir}/img_basename'.format(figures_dir=targets.figures_dir),views = ['lat','med','caud','dor'],filetype='png')
+
     
     mlab.show()
     
@@ -59,7 +67,7 @@ def plot_samples(samples, hemi='both', surf='pial', annot=None,annot_alpha=1, ma
     """
     
     # adding brain and annotations
-    brain = Brain(samples.subject, surf='pial', hemi='both', subjects_dir=samples.subjects_dir, offset=False, background=background)
+    brain = Brain(samples.subject, surf=surf, hemi='both', subjects_dir=samples.subjects_dir, offset=False, background=background)
     if annot:
         if hemi=='both':
             brain.add_annotation(annot,hemi='lh',borders=False, alpha=annot_alpha)
@@ -121,7 +129,21 @@ def plot_samples(samples, hemi='both', surf='pial', annot=None,annot_alpha=1, ma
 
         
         
-        
+def plot_directions(x,y,z,u,v,w):
+    scales=[20,20,25]
+    lines_width=[2,3,1]
+    colors=[(1,0,0),(0,1,0),(0,0,1)]
+    
+    obj = mlab.quiver3d(x, y, z, u, v, w,
+            line_width=3, colormap='hsv', 
+            scale_factor=0.8, mode='arrow')
+
+    for i in range(len(x)):
+        r,g,b = colors[i]
+        #print("R: {}, G: {}, B: {}".format(r,g,b))
+        obj = mlab.quiver3d(x[i], y[i], z[i], u[i], v[i], w[i],
+                line_width=lines_width[i], color=(r,g,b), colormap='hsv', 
+                scale_factor=scales[i], mode='arrow')        
        
     
     
