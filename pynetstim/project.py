@@ -8,8 +8,6 @@ from surface import Surf, FreesurferSurf
 from brainsight import BrainsightSessionFile, BrainsightSamples, BrainsightTargets
 import os
 from pymisc.htmlreport import HtmlDoc
-from mayavi import mlab
-from surfer import Brain
 from nipype.interfaces.fsl import FLIRT,FNIRT
 from plotting import plot_samples
 import numpy as np

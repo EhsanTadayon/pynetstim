@@ -8,7 +8,7 @@ import numpy as np
 from collections import defaultdict
 import os
 from coordinates import Coords
-from stims import Targets,_Target
+from targets import Targets,_Target
 
 
 class BrainsightSessionFile(object):
