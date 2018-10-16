@@ -34,13 +34,21 @@ def plot_targets(targets, hemi, surf='pial', map_surface= None, annot=None, map_
     ### map to annot
     if map_to_annot:
         targets.names, targets.colors = targets.map_to_annot(map_to_annot) 
+        
+    if map_surface:
+        mapped_vertices, mapped_coords = targets.map_to_surface(map_surface)
 
     ### show targets
     
-    for target in targets:
+    for i,target in enumerate(targets):
         
         if target.hemi==hemi or hemi=='both':
-            brain.add_foci(target.ras_tkr_coord, hemi = target.hemi, color = target.color, scale_factor = scale_factor, alpha = opacity, map_surface = map_surface)
+            if map_surface:
+                brain.add_foci(target.ras_tkr_coord, hemi = target.hemi, color = target.color, scale_factor = scale_factor, alpha = opacity)
+                brain.add_foci(mapped_coords[i,:], hemi = target.hemi, color = target.color, scale_factor = scale_factor, alpha = opacity)
+            else:
+                brain.add_foci(target.ras_tkr_coord, hemi = target.hemi, color = target.color, scale_factor = scale_factor, alpha = opacity)
+                
             if show_rois:
                 brain.add_label(target.roi, hemi=target.hemi, color=target.roi.color)
             if show_names:
@@ -127,7 +135,6 @@ def plot_samples(samples, hemi='both', surf='pial', annot=None,annot_alpha=1, ma
             os.remove(img)   
         mlab.close()
 
-        
         
 def plot_directions(x,y,z,u,v,w):
     scales=[20,20,25]
