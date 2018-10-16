@@ -61,6 +61,7 @@ class Coords():
         warppoints.inputs.coord_mm = True
         res = warppoints.run()
         res = np.loadtxt('./temp_coords_warped.txt')
+        res = res[0:res.shape[0]-1,:]
         
         ## removing the files
         os.remove('./temp_coords.txt')
@@ -120,7 +121,7 @@ class FreesurferCoords(Coords):
         self.ras2fsvox = self.orig_img.header.get_ras2vox()
         self.fsvox2ras_tkr = self.orig_img.header.get_vox2ras_tkr()
         
-        self.ras2ras_tkr = np.dot(self.fsvoxel2ras_tkr,self.ras2fsvoxel)
+        self.ras2ras_tkr = np.dot(self.fsvox2ras_tkr,self.ras2fsvox)
         
         Coords.__init__(self, coords, rawavg_file, type='ras')        
         self.coordinates['ras_tkr_coords'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, self._affineM)).T[:,:3]
@@ -139,10 +140,14 @@ class FreesurferCoords(Coords):
         
         if colors is None:
             self.colors = np.empty((self.npoints,3),dtype='object')
+            
         elif isinstance(colors,np.ndarray):
             self.colors = colors
         else:
             raise ValueError('colors should be either None or numpy.ndarray')
+            
+        self.rois = np.empty(self.npoints,dtype='object')
+            
            
     def _guess_hemi(self):
         self.hemis = []
@@ -160,11 +165,13 @@ class FreesurferCoords(Coords):
                  
         self.hemis = np.array(self.hemis)
         
+        
     def set_hemi_manually(self, n, hemi):
         
         self.hemis[n] = hemi
         if n in self.hemis_not_determined:
             self.hemis_not_determined.remove(n)
+        
         
     def _read_talaraich_transformation(self):
         """ read talairach transformation from freesurfer talairach.xfm output"""
@@ -188,10 +195,12 @@ class FreesurferCoords(Coords):
             
         return np.array(rows)
     
+    
     def _get_talairach_coords(self):
         """ transforms the coordinates by talairach transform matrix from freesurfer talairach.xfm"""
         talairach_tr = self._read_talaraich_transformation()
         return np.dot(talairach_tr,self._affineM).T[:,:3]
+          
           
     def map_to_annot(self, annot, map_surface='white'):
         """ map each point to specified annotation 
@@ -239,20 +248,23 @@ class FreesurferCoords(Coords):
         
         return structures, colors
         
+        
     def map_to_surface(self, surface='white'):
         
         if len(self.hemis_not_determined)>0:
             raise ValueError('Use set_hemi_manually to assign hemisphere to these points: %s'%(','.join(self.hemis_not_determined)))
-            
-        lh_surf = FreesurferSurf('lh', surface,self.subject, self.subjects_dir)
-        rh_surf = FreesurferSurf('rh', surface, self.subject, self.subjects_dir)
-        
         
         lh_coords = self.coordinates['ras_tkr_coords'][self.hemis=='lh',:]
         rh_coords = self.coordinates['ras_tkr_coords'][self.hemis=='rh',:]
         
-        lh_mapped_vertices,lh_mapped_coords = lh_surf.project_coords(lh_coords)
-        rh_mapped_vertices, rh_mapped_coords = rh_surf.project_coords(rh_coords)
+        if surface in ['white','pial']:
+            lh_surf = FreesurferSurf('lh', surface,self.subject, self.subjects_dir)
+            rh_surf = FreesurferSurf('rh', surface, self.subject, self.subjects_dir)
+            lh_mapped_vertices,lh_mapped_coords = lh_surf.project_coords(lh_coords)
+            rh_mapped_vertices, rh_mapped_coords = rh_surf.project_coords(rh_coords)
+        elif isinstance(surface,Surf):
+            lh_mapped_vertices, lh_mapped_coords = surface.project_coords(lh_coords)
+            rh_mapped_vertices, rh_mapped_coords = surface.project_coords(rh_coords)
         
         
         mapped_vertices = np.empty(self.npoints, dtype='int')
@@ -264,9 +276,7 @@ class FreesurferCoords(Coords):
         mapped_coords[self.hemis=='rh',:] = rh_mapped_coords
         
         return mapped_vertices, mapped_coords
-            
-        
-        
+
         
     def create_surf_rois(self, extents, surface='white', annot=None, out_dir=None):
         """ creates surface ROIs for each stimulation target
