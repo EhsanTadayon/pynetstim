@@ -5,18 +5,16 @@ Author: Ehsan Tadayon, M.D. [sunny.tadayon@gmail.com / stadayon@bidmc.harvard.ed
 
 from coordinates import Coords, FreesurferCoords
 from surface import Surf, FreesurferSurf
-from brainsight import BrainsightSessionFile, BrainsightSamples, BrainsightTargets
+from brainsight import BrainsightSessionFile, BrainsightSamples, BrainsightTargets, BrainsightElectrodes
 import os
 from pymisc.htmlreport import HtmlDoc
 from nipype.interfaces.fsl import FLIRT,FNIRT
-from plotting import plot_samples
+from plotting import plotting_points_fast
 import numpy as np
 from scipy.spatial.distance import cdist
 
 ## TO DO:
-#### define a Target class ( and brainsight targets will inherit from it) 
-### define a Sample class ( and BrainsightSamples will inherit from it)
-#### register the subject to MNI using flirt and fnirt. 
+
 
 
 class StimProject(object):
@@ -72,6 +70,7 @@ class StimProject(object):
             bs = BrainsightSessionFile(self.brainsight_file,out_dir='{subject_dir}/brainsight'.format(subject_dir=self.subject_dir))
             self.brainsight_samples = BrainsightSamples('{subject_dir}/brainsight/samples.txt'.format(subject_dir=self.subject_dir))
             self.brainsight_targets = BrainsightTargets('{subject_dir}/brainsight/targets.txt'.format(subject_dir=self.subject_dir), self.subject, self.freesurfer_dir)
+            self.brainsight_electrodes = BrainsightElectrodes('{subject_dir}/brainsight/electrodes.txt'.format(subject_dir=self.subject_dir))
             
 
     def summary(self,plot_pulses=False, overwrite=False):
@@ -114,9 +113,9 @@ class StimProject(object):
                    pulses_coords = pulses_coords[idx]
                    pulses = FreesurferCoords(pulses_coords,self.subject,self.freesurfer_dir)
                    prefix=session+'_'+t+'_'+str(j)
-                   plot_samples(pulses,out_dir=self.brainsight_dir, map_surface='pial', prefix=prefix,annot='aparc', annot_alpha=1,show_average=True)
+                   plot_points_fast(pulses, map_surface='pial', annot='aparc', annot_alpha=1,show_average=True, out_dir = os.path.join(self.brainsight_dir, 'images'), prefix=prefix)
                    html.add_paragraph('&nbsp&nbsp&nbsp -> Target: '+ t + ' (start:' + str(seq[0])+ ', end:' + str(seq[1]) + ', stimulations:' + str(seq[1]-seq[0]+1)+')<br><br>')
-                   html.add_image(prefix+'.png',200,900,'middle')
+                   html.add_image('./images/'+prefix+'.png',200,900,'middle')
                    html.add_paragraph('<br><br>')
                
                else:
