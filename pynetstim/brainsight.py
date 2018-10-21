@@ -7,8 +7,7 @@ import pandas as pd
 import numpy as np
 from collections import defaultdict
 import os
-from coordinates import Coords
-from targets import Targets,_Target
+from coordinates import Coords, FreesurferCoords
 
 
 class BrainsightSessionFile(object):
@@ -75,7 +74,7 @@ class BrainsightSessionFile(object):
         return header
                 
 
-class BrainsightTargets(Targets):
+class BrainsightTargets(FreesurferCoords):
     
     def __init__(self, targets_file, subject, freesurfer_dir):
         
@@ -84,13 +83,13 @@ class BrainsightTargets(Targets):
             
         coords = self._df[['loc_x','loc_y','loc_z']].values
         guess_hemi=True
-        names = self._df['target_name'].values
-        directions = self._df[['m0n0','m0n1','m0n2','m1n0','m1n1','m1n2','m2n0','m2n1','m2n2']].values
-        Targets.__init__(self,coords, subject, freesurfer_dir, names=names, colors=None, directions=directions)
+        name = self._df['target_name'].values
+        direction = self._df[['m0n0','m0n1','m0n2','m1n0','m1n1','m1n2','m2n0','m2n1','m2n2']].values
+        FreesurferCoords.__init__(self,coords, subject, freesurfer_dir, name=name, direction=direction)
         
     def get_coords(self,targets=None):
         if targets is None:
-            targets = self.names
+            targets = self.name
             
         return self._df[self._df.target_name.apply(lambda x: x in targets)][['loc_x','loc_y','loc_z']].values
         
@@ -184,6 +183,18 @@ class BrainsightSamples(object):
                     #raise ValueError('chunk exceeds the range')
                 
 
+
+
+class BrainsightElectrodes(object):
+    def __init__(self,electrodes_file):
+        self.electrodes_file = electrodes_file
+        self._df = pd.read_table(electrodes_file,na_values='(null)')
+        
+    def get_electrodes(self,session,exclude_null=True):
+        df2 = self._df.copy()
+        df2 = df2[(df2.electrode_type=='EEG')&(df2.session_name==session)]
+        df2.dropna(axis=0,inplace=True)
+        return df2
 
 
 
