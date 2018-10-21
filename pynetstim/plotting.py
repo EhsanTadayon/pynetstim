@@ -11,142 +11,157 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 
-def plot_targets(targets, hemi, surf='pial', map_surface= None, annot=None, map_to_annot = None, show_rois=False, scale_factor=.8, show_names=False, show_directions=False, opacity=1,
- background='black', img_basename=None, skin=True):
-    
-    # adding brain and annotations
-    brain = Brain(targets.subject, surf=surf, hemi=hemi, subjects_dir=targets.subjects_dir, offset=False, background=background)
-    
-    ## adding skin
-    if skin:
-        skin_surf = Surf('{subjects_dir}/{subject}/bem/lh.watershed_outer_skin_surface'.format(subjects_dir=targets.subjects_dir, subject=targets.subject))
-        mlab.triangular_mesh(skin_surf.vertices[:,0], skin_surf.vertices[:,1], skin_surf.vertices[:,2], skin_surf.faces, opacity=0.2, color=(1,1,0))
 
-    ### annotation
-    if annot:
-        if hemi in ['lh','rh']:
-            brain.add_annotation(annot, hemi=hemi, borders=False)
-            
-        elif hemi=='both':
-            brain.add_annotation(annot, hemi='lh', borders=False)
-            brain.add_annotation(annot, hemi='rh', borders=False, remove_existing=False)
-            
-    ### map to annot
-    if map_to_annot:
-        targets.names, targets.colors = targets.map_to_annot(map_to_annot) 
-        
-    if map_surface:
-        mapped_vertices, mapped_coords = targets.map_to_surface(map_surface)
+class plotting_points(object):
+    
+    def __init__(self, points, hemi='both', surf='pial', map_surface=None, annot=None, map_to_annot=None, show_skin=True, show_roi=False,
+        show_name=False, show_directions=False, background='black', show_average=False, opacity=1, scale_factor=.5, color=(1,0,0), use_default=True):
+     
+        self.points = points
+        self.subject = points.subject
+        self.subjects_dir = points.subjects_dir
+        self.hemi = hemi
+        self.surf = surf
+        self.background = background
+        self.map_surface=map_surface
+        self.annot = annot
+        self.map_to_annot = map_to_annot
+        self.show_skin = show_skin
+        self.show_roi = show_roi
+        self.scale_factor = scale_factor
+        self.show_directions = show_directions
+        self.show_name = show_name
+        self.show_average = show_average
+        self.opacity = opacity
+        self.color=color
+        self.scale_factor = scale_factor
+        self.use_default = use_default
 
-    ### show targets
-    
-    for i,target in enumerate(targets):
         
-        if target.hemi==hemi or hemi=='both':
-            if map_surface:
-                brain.add_foci(target.ras_tkr_coord, hemi = target.hemi, color = target.color, scale_factor = scale_factor, alpha = opacity)
-                brain.add_foci(mapped_coords[i,:], hemi = target.hemi, color = target.color, scale_factor = scale_factor, alpha = opacity)
-            else:
-                brain.add_foci(target.ras_tkr_coord, hemi = target.hemi, color = target.color, scale_factor = scale_factor, alpha = opacity)
-                
-            if show_rois:
-                brain.add_label(target.roi, hemi=target.hemi, color=target.roi.color)
-            if show_names:
-                mlab.text3d(target.ras_tkr_coord[0],target.ras_tkr_coord[1],target.ras_tkr_coord[2],target.name,scale=4)
-            if show_directions:
-                origin = target.ras_tkr_coord.flatten().tolist()
-                X,Y,Z = zip(origin,origin,origin)
-                p0 = target.direction[0:3]
-                p1 = target.direction[3:6]
-                p2 = target.direction[6:9]
-                U,W,V = zip(p0,p1,p2)
-                plot_directions(X,Y,Z,U,W,V)
-
-    if img_basename:
-        brain.save_imageset(prefix='{figures_dir}/img_basename'.format(figures_dir=targets.figures_dir),views = ['lat','med','caud','dor'],filetype='png')
-
-    
-    mlab.show()
-    
-    
-def plot_samples(samples, hemi='both', surf='pial', annot=None,annot_alpha=1, map_surface=None, show_average=False, background='white', out_dir=None, prefix=''):
-    """
-    plot individual pulses. 
-    """
-    
-    # adding brain and annotations
-    brain = Brain(samples.subject, surf=surf, hemi='both', subjects_dir=samples.subjects_dir, offset=False, background=background)
-    if annot:
-        if hemi=='both':
-            brain.add_annotation(annot,hemi='lh',borders=False, alpha=annot_alpha)
-            brain.add_annotation(annot,hemi='rh',borders=False,remove_existing=False, alpha=annot_alpha)
-        if hemi in ['lh','rh']:
-            brain.add_annotation(annot,hemi=hemi,borders=False, alpha=annot_alpha)
+        self._create_default()
+        self._plot()
+        
+        
+    def _create_default(self):
+        
+        if not hasattr(self.points,'color') and self.use_default:
+            self.points.add_trait('color', np.atleast_2d(np.array([self.color]*self.points.npoints)))
             
-    skin_surf = Surf('{subjects_dir}/{subject}/bem/lh.watershed_outer_skin_surface'.format(subjects_dir=samples.subjects_dir, subject=samples.subject))
-    mlab.triangular_mesh(skin_surf.vertices[:,0], skin_surf.vertices[:,1], skin_surf.vertices[:,2], skin_surf.faces, opacity=0.2, color=(1,1,0))
-    
-    
-    
-    mlab.points3d(samples.coordinates['ras_tkr_coords'][:,0],samples.coordinates['ras_tkr_coords'][:,1],samples.coordinates['ras_tkr_coords'][:,2],scale_factor=7,reset_zoom=False,
-    color=(1,0,0),opacity=.2)
-    
-    
-    #### show the average coordinate
-    if show_average:
-        
-        avg_coord = np.mean(samples.coordinates['ras_tkr_coords'],axis=0)
-        mlab.points3d(avg_coord[0],avg_coord[1],avg_coord[2],color=(0,0,1),scale_factor=10)
-    
-    
-    ### project to surface
-    if map_surface is not None:
-        lh_map_surf = FreesurferSurf('lh', map_surface, samples.subject, samples.subjects_dir)
-        rh_map_surf = FreesurferSurf('rh', map_surface, samples.subject, samples.subjects_dir)
-        
-        lh_samples = samples.coordinates['ras_tkr_coords'][samples.hemis=='lh']
-        rh_samples = samples.coordinates['ras_tkr_coords'][samples.hemis=='rh']
-        
-        if lh_samples.shape[0]>0:
-            lh_mapped_coords = lh_map_surf.project_coords(lh_samples)[1]
-            mlab.points3d(lh_mapped_coords[:,0],lh_mapped_coords[:,1],lh_mapped_coords[:,2],scale_factor=7,color=(0,1,1),reset_zoom=False)
+        if not hasattr(self.points, 'scale_factor') and self.use_default:
+            self.points.add_trait('scale_factor', np.ones(self.points.npoints)*self.scale_factor)
             
-        if rh_samples.shape[0]>0:    
-            rh_mapped_coords = rh_map_surf.project_coords(rh_samples)[1]
-            mlab.points3d(rh_mapped_coords[:,0],rh_mapped_coords[:,1],rh_mapped_coords[:,2],scale_factor=7,color=(0,1,1), reset_zoom=False)
+        if not hasattr(self.points,'opacity') and self.use_default:
+            self.points.add_trait('opacity',np.ones(self.points.npoints)*self.opacity)
         
-    ### save
-    if out_dir is None:
+        
+    def _plot(self):
+        
+        ## plot
+        self._brain = Brain(hemi=self.hemi, surf=self.surf, subject_id=self.subject, subjects_dir=self.subjects_dir, background = self.background,offset=False)
+         
+        if self.show_skin:
+            self._show_skin()
+        
+        if self.annot:
+            self._show_annot()
+  
+        self._add_points()
+        
+        if self.show_average:
+            self._show_average()
+        
+    def show(self):
         mlab.show()
-    else:
-        fname = os.path.join(out_dir,prefix)
-        brain.save_imageset(fname,['med', 'lat', 'dor','caud','ros'], 'png')
-        saved_images = [fname+'_'+view+'.png' for view in ['med','lat','dor','caud','ros']]
-    
+         
+         
+    def _add_points(self):
+        
+        if self.map_to_annot:
+            self.points.name, self.points.color = self.points.map_to_annot(self.map_to_annot) 
             
-        fig,ax = plt.subplots(1,len(saved_images),figsize=(12,6))
-        for i, img in enumerate(saved_images):
-            img = plt.imread(img)
-            ax[i].imshow(img)
-            ax[i].set_axis_off()
-        fig.savefig(fname+'.png',dpi=600,bbox_inches='tight')
-        plt.close(fig)
-        for img in saved_images:
-            os.remove(img)   
-        mlab.close()
+        if self.map_surface:
+            mapped_vertices, mapped_coords = self.points.map_to_surface(self.map_surface)
+            mapped_coords = mapped_coords
+        
+        for i,point in enumerate(self.points):
+        
+            if point.hemi==self.hemi or self.hemi=='both':
+               
+                if self.map_surface:
+                    self._brain.add_foci(mapped_coords[i,:], hemi=point.hemi, color=point.color, scale_factor=point.scale_factor, alpha=point.opacity)
+                else:
+                    self._brain.add_foci(point.ras_tkr_coord, hemi=point.hemi, color=point.color, scale_factor=point.scale_factor, alpha=point.opacity)
+                
+                if self.show_roi and hasattr(point,'roi'):
+                    self._brain.add_label(point.roi, hemi=point.hemi, color=point.roi.color)
+                    
+                if self.show_name and hasattr(point,'name'):
+                    mlab.text3d(point.ras_tkr_coord[0], point.ras_tkr_coord[1], point.ras_tkr_coord[2], point.name, scale=4)
+                    
+                if self.show_directions and hasattr(point,'direction'):
+                    origin = point.ras_tkr_coord.flatten().tolist()
+                    X,Y,Z = zip(origin,origin,origin)
+                    p0 = point.direction[0:3]
+                    p1 = point.direction[3:6]
+                    p2 = point.direction[6:9]
+                    U,W,V = zip(p0,p1,p2)
+                    plot_directions(X,Y,Z,U,W,V)
+                    
+               
+                
+    def _show_skin(self):
+        
+        skin_surf = Surf('{subjects_dir}/{subject}/bem/lh.watershed_outer_skin_surface'.format(subjects_dir=self.subjects_dir, subject=self.subject))
+        mlab.triangular_mesh(skin_surf.vertices[:,0], skin_surf.vertices[:,1], skin_surf.vertices[:,2], skin_surf.faces, opacity=0.2, color=(1,1,0))
+        
+    def _show_annot(self):
+        
+        if self.hemi in ['lh','rh']:
+            self._brain.add_annotation(self.annot, hemi=self.hemi, borders=False)
+            
+        elif self.hemi=='both':
+            self._brain.add_annotation(self.annot, hemi='lh', borders=False)
+            self._brain.add_annotation(self.annot, hemi='rh', borders=False, remove_existing=False)
+            
+    def _show_average(self,scale_factor=6, color=(0,0,1)):
+        
+        avg_coord = np.mean(self.points.coordinates['ras_tkr_coord'],axis=0)
+        mlab.points3d(avg_coord[0],avg_coord[1], avg_coord[2], color=color, scale_factor=scale_factor)
+        
 
+
+
+class plotting_points_fast(plotting_points):
+    
+    def _add_points(self):
+        
+        if self.map_to_annot:
+            self.points.name, self.points.color = self.points.map_to_annot(self.map_to_annot) 
+            
+        if self.map_surface:
+            mapped_vertices, mapped_coords = self.points.map_to_surface(self.map_surface)
+            mapped_coords = mapped_coords
+            mlab.points3d(mapped_coords[:,0],mapped_coords[:,1],mapped_coords[:,2],
+                      scale_factor = self.scale_factor*8,reset_zoom=False, color=self.color, opacity = self.opacity)
+        else:
+            mlab.points3d(self.points.coordinates['ras_tkr_coord'][:,0],self.points.coordinates['ras_tkr_coord'][:,1],self.points.coordinates['ras_tkr_coord'][:,2],
+                      scale_factor = self.scale_factor*8,reset_zoom=False, color=self.color, opacity = self.opacity)
+            
+        
+    
+    
         
 def plot_directions(x,y,z,u,v,w):
     scales=[20,20,25]
     lines_width=[2,3,1]
-    colors=[(1,0,0),(0,1,0),(0,0,1)]
+    color=[(1,0,0),(0,1,0),(0,0,1)]
     
     obj = mlab.quiver3d(x, y, z, u, v, w,
             line_width=3, colormap='hsv', 
             scale_factor=0.8, mode='arrow')
 
     for i in range(len(x)):
-        r,g,b = colors[i]
+        r,g,b = color[i]
         #print("R: {}, G: {}, B: {}".format(r,g,b))
         obj = mlab.quiver3d(x[i], y[i], z[i], u[i], v[i], w[i],
                 line_width=lines_width[i], color=(r,g,b), colormap='hsv', 
