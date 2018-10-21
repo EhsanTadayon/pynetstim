@@ -16,36 +16,58 @@ from annotation import Annot
 
 
 
-class Coords():
+class Coords(object):
     
-    def __init__(self,coords, img_file, type='ras'):
+    def __init__(self,coords, img_file, coord_type='ras', **traits):
         """ coordinate class"""
         
         self.img_file = img_file
-        self.type = type
+        self.coord_type = coord_type
         self.img = nib.load(img_file)
         self.vox2ras = self.img.affine
         self.ras2vox = np.linalg.inv(self.vox2ras)
         self.npoints = coords.shape[0]
         self.coordinates = {}
         self._affineM = np.hstack((coords, np.ones((coords.shape[0],1)))).T
-        if type=='ras':
-            self.coordinates['ras_coords'] = coords
-            self.coordinates['voxel_coords'] = np.round(np.dot(self.ras2vox,self._affineM).T[:,:3])
-        elif type=='voxel':
-            self.coordinates['voxel_coords'] = coords
-            self.coordinates['ras_coords'] = np.dot(self.vox2ras,self._affineM).T[:,:3]
+        self._count=0
+        
+        
+        if coord_type=='ras':
+            self.coordinates['ras_coord'] = coords
+            self.coordinates['voxel_coord'] = np.round(np.dot(self.ras2vox,self._affineM).T[:,:3])
+        elif coord_type=='voxel':
+            self.coordinates['voxel_coord'] = coords
+            self.coordinates['ras_coord'] = np.dot(self.vox2ras,self._affineM).T[:,:3]
             
         else:
             raise ValueError('type should be either "ras" or "voxel"')
             
-        self._count=0
+        
+        
+        self.traits_list = []
+        for trait in traits:
+            self.add_trait(trait,traits[trait])     
+            
+    def add_trait(self,trait,value):
+        
+        if type(value)!=np.ndarray:
+            try:
+                value = np.atleast_1d(value)
+            except:
+                ValueError('{trait} should be numpy.ndarray!'.format(trait=trait))
+        
+        if value.shape[0]!=self.npoints:
+            raise ValueError('{trait} shape should be equal to number of points'.format(trait=trait))    
+            
+        self.__setattr__(trait,value)
+        if trait not in self.traits_list:
+            self.traits_list.append(trait)
      
     
-    def img2imgcoord(self, dest_img, reg_file,type):
+    def img2imgcoord(self, dest_img, reg_file, type):
         
        
-        np.savetxt('./temp_coords.txt',self.coordinates['ras_coords'])
+        np.savetxt('./temp_coords.txt',self.coordinates['ras_coord'])
         warppoints = WarpPoints()
         warppoints.inputs.in_coords = './temp_coords.txt'
         warppoints.inputs.src_file = self.img_file
@@ -79,23 +101,37 @@ class Coords():
             raise StopIteration
             
         else:
+            kwargs = {}
+            for trait in self.traits_list:
+                if hasattr(self,trait):
+                    kwargs[trait] = self.__getattribute__(trait)[self._count]
             ras_coord = self.coordinates['ras_coord'][self._count,:]
             voxel_coord = self.coordinates['voxel_coord'][self._count,:]
-            c = _Coord(ras_coord,voxel_coord)
+            c = _Coord(ras_coord,voxel_coord,**kwargs)
             self._count+=1
             return c
             
     def __getitem__(self,idx):
+        
+        kwargs = {}
+        for trait in self.traits_list:
+            if hasattr(self,trait):
+                kwargs[trait] = self.__getattribute__(trait)[self._count]
+                
         ras_coord = self.coordinates['ras_coord'][idx,:]
         voxel_coord = self.coordinates['voxel_coord'][idx,:]
-        c = _Coord(ras_coord,voxel_coord)
+        c = _Coord(ras_coord,voxel_coord,**kwargs)
         return c
         
         
 class _Coord(object):
-    def __init__(self, ras_coord, voxel_coord):
+    def __init__(self, ras_coord, voxel_coord,**kwargs):
         self.ras_coord = ras_coord
         self.voxel_coord = voxel_coord
+        self.traits_list = []
+        for trait,value in kwargs.items():
+            self.__setattr__(trait,value)
+            self.traits_list.append(trait)
         
     
     
@@ -109,8 +145,8 @@ class MNICoords(Coords):
             
            
 class FreesurferCoords(Coords):
-    
-    def __init__(self, coords, subject, subjects_dir, guess_hemi=True, names=None, colors=None):
+
+    def __init__(self, coords, subject, subjects_dir, guess_hemi=True, **traits):
 
         
         self.subjects_dir = subjects_dir
@@ -123,54 +159,37 @@ class FreesurferCoords(Coords):
         
         self.ras2ras_tkr = np.dot(self.fsvox2ras_tkr,self.ras2fsvox)
         
-        Coords.__init__(self, coords, rawavg_file, type='ras')        
-        self.coordinates['ras_tkr_coords'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, self._affineM)).T[:,:3]
-        self.coordinates['fsvoxel_coords'] = np.round(np.dot(self.ras2fsvox,self._affineM).T[:,:3])
-        self.coordinates['talairach'] = self._get_talairach_coords()
+        Coords.__init__(self, coords, rawavg_file, coord_type='ras', **traits)        
+        self.coordinates['ras_tkr_coord'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, self._affineM)).T[:,:3]
+        self.coordinates['fsvoxel_coord'] = np.round(np.dot(self.ras2fsvox,self._affineM).T[:,:3])
+        self.coordinates['talairach_coord'] = self._get_talairach_coords()
         
         if guess_hemi:
             self._guess_hemi()
             
-        if names is None:
-            self.names = np.empty(self.npoints,dtype='object')
-        elif isinstance(names,np.ndarray):
-            self.names = names
-        else:
-            raise ValueError('names should be either None or numpy.ndarray')
-        
-        if colors is None:
-            self.colors = np.empty((self.npoints,3),dtype='object')
-            
-        elif isinstance(colors,np.ndarray):
-            self.colors = colors
-        else:
-            raise ValueError('colors should be either None or numpy.ndarray')
-            
-        self.rois = np.empty(self.npoints,dtype='object')
-            
            
     def _guess_hemi(self):
-        self.hemis = []
-        self.hemis_not_determined = []
+        self.hemi = []
+        self.hemi_not_determined = []
         for s in np.arange(self.npoints):
-            if self.coordinates['fsvoxel_coords'][s,0]> 128: 
-                self.hemis.append('lh')   
-            elif self.coordinates['fsvoxel_coords'][s,0] < 128:
-                self.hemis.append('rh')   
+            if self.coordinates['fsvoxel_coord'][s,0]> 128: 
+                self.hemi.append('lh')   
+            elif self.coordinates['fsvoxel_coord'][s,0] < 128:
+                self.hemi.append('rh')   
             else:
-                warnings.warn('Could not determine hemisphere for point {x},{y},{z}. Right hemisphere has been chosen arbitrarily for this point. Manually set the hemisphere for this point by calling set_hemi_manually!'.format(x=self.coordinates['ras_coords'][s,0], y=self.coordinates['ras_coords'][s,1], z=self.coordinates['ras_coords'][s,2]))
+                warnings.warn('Could not determine hemiphere for point {x},{y},{z}. Right hemiphere has been chosen arbitrarily for this point. Manually set the hemiphere for this point by calling set_hemi_manually!'.format(x=self.coordinates['ras_coord'][s,0], y=self.coordinates['ras_coord'][s,1], z=self.coordinates['ras_coord'][s,2]))
                 
-                self.hemis_not_determined.append(s)
-                self.hemis.append('rh')
+                self.hemi_not_determined.append(s)
+                self.hemi.append('rh')
                  
-        self.hemis = np.array(self.hemis)
+        self.hemi = np.array(self.hemi)
         
         
     def set_hemi_manually(self, n, hemi):
         
-        self.hemis[n] = hemi
-        if n in self.hemis_not_determined:
-            self.hemis_not_determined.remove(n)
+        self.hemi[n] = hemi
+        if n in self.hemi_not_determined:
+            self.hemi_not_determined.remove(n)
         
         
     def _read_talaraich_transformation(self):
@@ -202,7 +221,7 @@ class FreesurferCoords(Coords):
         return np.dot(talairach_tr,self._affineM).T[:,:3]
           
           
-    def map_to_annot(self, annot, map_surface='white'):
+    def map_to_annot(self, annot, map_surface='white', inplace=True):
         """ map each point to specified annotation 
         
         Parameters
@@ -218,13 +237,13 @@ class FreesurferCoords(Coords):
         structures: numpy.ndarray
             a numpy array of structures ( annotations)
         
-        colors: numpy.ndarray
+        color: numpy.ndarray
             a numpy array (npoints x 3) that specifies the color based on the annotation provided
             
         """
         
-        if len(self.hemis_not_determined)>0:
-            raise ValueError('Use set_hemi_manually to assign hemisphere to these points: %s'%(','.join(self.hemis_not_determined)))
+        if len(self.hemi_not_determined)>0:
+            raise ValueError('Use set_hemi_manually to assign hemiphere to these points: %s'%(','.join(self.hemi_not_determined)))
         
      
         lh_annot = Annot('lh', annot, self.subject, self.subjects_dir)
@@ -234,51 +253,56 @@ class FreesurferCoords(Coords):
         structures = np.empty(self.npoints,dtype='object')
         
         
-        lh_coords = self.coordinates['ras_tkr_coords'][self.hemis=='lh',:]
-        rh_coords = self.coordinates['ras_tkr_coords'][self.hemis=='rh',:]
+        lh_coords = self.coordinates['ras_tkr_coord'][self.hemi=='lh',:]
+        rh_coords = self.coordinates['ras_tkr_coord'][self.hemi=='rh',:]
 
         lh_colors, lh_structures = lh_annot.map_coords(lh_coords , map_surface=map_surface)
         rh_colors, rh_structures = rh_annot.map_coords(rh_coords, map_surface=map_surface)
         
-        colors[self.hemis=='lh',:] = lh_colors
-        colors[self.hemis=='rh',:] = rh_colors
+        colors[self.hemi=='lh',:] = lh_colors
+        colors[self.hemi=='rh',:] = rh_colors
         
-        structures[self.hemis=='lh'] = ['lh_' + x.decode('UTF-8') for x in lh_structures]
-        structures[self.hemis=='rh'] = ['rh_' + x.decode('UTF-8') for x in rh_structures]
+        structures[self.hemi=='lh'] = ['lh_' + x.decode('UTF-8') for x in lh_structures]
+        structures[self.hemi=='rh'] = ['rh_' + x.decode('UTF-8') for x in rh_structures]
+        
+        if inplace:
+            self.add_trait('color',colors)
+            self.add_trait('name', structures)
         
         return structures, colors
         
         
     def map_to_surface(self, surface='white'):
         
-        if len(self.hemis_not_determined)>0:
-            raise ValueError('Use set_hemi_manually to assign hemisphere to these points: %s'%(','.join(self.hemis_not_determined)))
+        if len(self.hemi_not_determined)>0:
+            raise ValueError('Use set_hemi_manually to assign hemiphere to these points: %s'%(','.join(self.hemi_not_determined)))
         
-        lh_coords = self.coordinates['ras_tkr_coords'][self.hemis=='lh',:]
-        rh_coords = self.coordinates['ras_tkr_coords'][self.hemis=='rh',:]
+        lh_coords = self.coordinates['ras_tkr_coord'][self.hemi=='lh',:]
+        rh_coords = self.coordinates['ras_tkr_coord'][self.hemi=='rh',:]
         
         if surface in ['white','pial']:
             lh_surf = FreesurferSurf('lh', surface,self.subject, self.subjects_dir)
             rh_surf = FreesurferSurf('rh', surface, self.subject, self.subjects_dir)
             lh_mapped_vertices,lh_mapped_coords = lh_surf.project_coords(lh_coords)
             rh_mapped_vertices, rh_mapped_coords = rh_surf.project_coords(rh_coords)
+            
         elif isinstance(surface,Surf):
             lh_mapped_vertices, lh_mapped_coords = surface.project_coords(lh_coords)
             rh_mapped_vertices, rh_mapped_coords = surface.project_coords(rh_coords)
         
         
         mapped_vertices = np.empty(self.npoints, dtype='int')
-        mapped_vertices[self.hemis=='lh']= lh_mapped_vertices
-        mapped_vertices[self.hemis=='rh'] = rh_mapped_vertices
+        mapped_vertices[self.hemi=='lh']= lh_mapped_vertices
+        mapped_vertices[self.hemi=='rh'] = rh_mapped_vertices
         
         mapped_coords = np.zeros((self.npoints,3))
-        mapped_coords[self.hemis=='lh',:] = lh_mapped_coords
-        mapped_coords[self.hemis=='rh',:] = rh_mapped_coords
+        mapped_coords[self.hemi=='lh',:] = lh_mapped_coords
+        mapped_coords[self.hemi=='rh',:] = rh_mapped_coords
         
         return mapped_vertices, mapped_coords
 
         
-    def create_surf_rois(self, extents, surface='white', annot=None, out_dir=None):
+    def create_surf_roi(self, extents, surface='white', annot=None, out_dir=None):
         """ creates surface ROIs for each stimulation target
         
         Parameters
@@ -291,7 +315,7 @@ class FreesurferCoords(Coords):
             specifies which surface to use for growing the ROIs ( white or pial)
             
         annot: string
-            specifies which annotation to use to assign name and colors to each ROI
+            specifies which annotation to use to assign name and color to each ROI
         
         out_dir: string
             output directory
@@ -300,17 +324,17 @@ class FreesurferCoords(Coords):
         Returns
         -------
         
-        rois: numpy.ndarray
+        roi: numpy.ndarray
             resulting ROIs
         """
         
-        if len(self.hemis_not_determined)>0:
-            raise ValueError('Use set_hemi_manually to assign hemisphere to these points: %s'%(','.join(self.hemis_not_determined)))
+        if len(self.hemi_not_determined)>0:
+            raise ValueError('Use set_hemi_manually to assign hemiphere to these points: %s'%(','.join(self.hemi_not_determined)))
         
         mapped_vertices, mapped_coords = self.map_to_surface(surface)
         
-        hemis = [0 if hemi=='lh' else 1 for hemi in self.hemis]
-        self.rois = grow_labels(self.subject, mapped_vertices, extents, hemis, self.subjects_dir)
+        hemi = [0 if hemi=='lh' else 1 for hemi in self.hemi]
+        rois = grow_labels(self.subject, mapped_vertices, extents, hemi, self.subjects_dir)
         
         ### extents can be one number or an array, make it an array if it is a number
         try:
@@ -318,21 +342,21 @@ class FreesurferCoords(Coords):
         except:
             extents = [extents]*self.npoints
         
-        ### get structures and colors for labels according to annotation
+        ### get structures and color for labels according to annotation
         if annot:
             structures, colors = self.map_to_annot(annot, map_surface=surface)
             
             for i in range(self.npoints):
-                self.rois[i].color = colors[i]
+                rois[i].color = colors[i]
                 vertex = mapped_vertices[i]
-                self.rois[i].name = structures[i]+'_{r}mm_{surf}_{vertex}'.format(r=extents[i],surf=surface,vertex=vertex)
+                rois[i].name = structures[i]+'_{r}mm_{surf}_{vertex}'.format(r=extents[i],surf=surface,vertex=vertex)
         
         #### saving ROI labels
         if out_dir:
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir)
         
-            for i,roi in enumerate(self.rois):
+            for i,roi in enumerate(rois):
                 os.environ['SUBJECTS_DIR'] = self.subjects_dir
                 
                 ### saving ROI label
@@ -358,8 +382,8 @@ class FreesurferCoords(Coords):
                 wf.run()
            
         ### converting list to arrays
-        self.rois = np.array(self.rois)
-        return self.rois    
+        self.add_trait('roi', np.array(rois))
+        return self.roi    
         
     def __iter__(self):
         return self
@@ -370,43 +394,51 @@ class FreesurferCoords(Coords):
             self._count = 0
             raise StopIteration
         else:
-            t = _FreesurferCoord(ras_coord = self.coordinates['ras_coords'][self._count,:],
-                           voxel_coord = self.coordinates['voxel_coords'][self._count],
-                           ras_tkr_coord = self.coordinates['ras_tkr_coords'][self._count,:],
-                           fsvoxel_coord = self.coordinates['fsvoxel_coords'][self._count],
-                           hemi = self.hemis[self._count],
-                           roi = self.rois[self._count],
-                           name = self.names[self._count],
-                           color = self.colors[self._count],
-                           )
+            kwargs = {}
+            for trait in self.traits_list:
+                if hasattr(self,trait):
+                    kwargs[trait] = self.__getattribute__(trait)[self._count]
+
+            t = _FreesurferCoord(ras_coord = self.coordinates['ras_coord'][self._count,:],
+                           voxel_coord = self.coordinates['voxel_coord'][self._count],
+                           ras_tkr_coord = self.coordinates['ras_tkr_coord'][self._count,:],
+                           fsvoxel_coord = self.coordinates['fsvoxel_coord'][self._count],
+                           hemi = self.hemi[self._count],
+                           **kwargs)
                        
             self._count +=1
             return t
             
     def __getitem__(self,idx):
         
-        t = _FreesurferCoord(ras_coord = self.coordinates['ras_coords'][idx,:],
-                        voxel_coord = self.coordinates['voxel_coords'][idx],
-                        ras_tkr_coord = self.coordinates['ras_tkr_coords'][idx,:],
-                        fsvoxel_coord = self.coordinates['fsvoxel_coords'][idx],
-                        hemi = self.hemis[idx],
-                        roi = self.rois[idx],
-                        name = self.names[idx],
-                        color = self.colors[idx],
-                        )
+        kwargs = {}
+        for trait in self.traits_list:
+            if hasattr(self,trait):
+                kwargs[trait] = self.__getattribute__(trait)[self._count]
+                
+        t = _FreesurferCoord(ras_coord = self.coordinates['ras_coord'][idx,:],
+                        voxel_coord = self.coordinates['voxel_coord'][idx],
+                        ras_tkr_coord = self.coordinates['ras_tkr_coord'][idx,:],
+                        fsvoxel_coord = self.coordinates['fsvoxel_coord'][idx],
+                        hemi = self.hemi[idx],
+                        **kwargs)
+        return t
 
         
-        
 class _FreesurferCoord(object):
-    def __init__(self,ras_coord, voxel_coord, ras_tkr_coord, fsvoxel_coord, hemi, roi, name, color):
+    def __init__(self,ras_coord, voxel_coord, ras_tkr_coord, fsvoxel_coord, hemi, **kwargs):
         self.ras_coord = ras_coord
         self.voxel_coord = voxel_coord
         self.ras_tkr_coord = ras_tkr_coord
         self.fsvoxel_coord = fsvoxel_coord
         self.hemi = hemi
-        self.roi = roi
-        self.name = name
-        self.color = color
+        
+        self.traits_list = []
+        for trait,value in kwargs.items():
+            self.__setattr__(trait, value)
+            self.traits_list.append(trait)
+
+        
         
         
         
