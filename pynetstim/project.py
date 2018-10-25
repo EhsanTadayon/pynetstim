@@ -13,6 +13,7 @@ from plotting import plotting_points_fast
 import numpy as np
 from scipy.spatial.distance import cdist
 
+
 ## TO DO:
 
 
@@ -20,7 +21,7 @@ from scipy.spatial.distance import cdist
 class StimProject(object):
     
     """ main stimulation project class"""
-    def __init__(self, subject, project_dir, anatomical = None, freesurfer_dir = None, brainsight_file = None, to_mni = False,
+    def __init__(self, subject, project_dir, anatomical = None, freesurfer_dir = None, simnibs_dir=None, brainsight_file = None, to_mni = False,
      mni_template='MNI152_T1_2mm.nii.gz', mni_directory = os.path.join(os.environ['FSLDIR'],'data/standard')):
         
         self.subject = subject
@@ -34,6 +35,11 @@ class StimProject(object):
         self.project_dir = project_dir
         self.subject_dir = os.path.join(self.project_dir,subject)
         self.freesurfer_dir = freesurfer_dir
+        self.simnibs_dir = simnibs_dir
+        
+        if self.simnibs_dir is not None:
+            self.freesurfer_dir = self.simnibs_dir
+            
         self.brainsight_file = brainsight_file
         self.targets = []
     
@@ -48,17 +54,32 @@ class StimProject(object):
         
         # TO DO: add more folders
         if not os.path.exists(self.subject_dir):
-            
-            
             os.makedirs('{subject_dir}/brainsight'.format(subject_dir=self.subject_dir))
             os.makedirs('{subject_dir}/figures'.format(subject_dir = self.subject_dir))
             os.makedirs('{subject_dir}/mni'.format(subject_dir = self.subject_dir))
-            os.makedirs('{subject_dir}/anatomical'.format(subject_dir=self.subject_dir))
+            os.makedirs('{subject_dir}/')
         
         self.brainsight_dir='{subject_dir}/brainsight'.format(subject_dir=self.subject_dir)
         self.figures_dir = '{subject_dir}/figures'.format(subject_dir=self.subject_dir)  
         self.mni_nonlinear = '{subject_dir}/mni'.format(subject_dir=self.subject_dir)
-
+        
+        ### create head models
+        self._make_head_model()
+        
+        
+    def _make_head_model(self):
+        
+        if not os.path.isfile('{freesurfer_dir}/{subject}/bem/outer_skin_surface'.format(freesurfer_dir=self.freesurfer_dir, subject=self.subject)):
+            if not os.path.exists('{freesurfer_dir}/{subject}/bem'.format(freesurfer_dir=self.freesurfer_dir, subject=self.subject)):
+                os.makedirs('{freesurfer_dir}/{subject}/bem'.format(freesurfer_dir=self.freesurfer_dir, subject=self.subject))
+        
+            cmd ='cd {freesurfer_dir}/{subject}/bem; mri_watershed -surf surf {freesurfer_dir}/{subject}/mri/rawavg.mgz brain.mgz'.format(freesurfer_dir=self.freesurfer_dir, subject = self.subject)
+            os.system(cmd)
+        
+            for f in ['lh.surf_brain_surface','lh.surf_inner_skull_surface','lh.surf_outer_skin_surface','lh.surf_outer_skull_surface']:
+                cmd = 'mv {freesurfer_dir}/{subject}/bem/{f} {freesurfer_dir}/{subject}/bem/{f2}'.format(f=f,f2=f.split('lh.surf_')[1],freesurfer_dir=self.freesurfer_dir,subject=self.subject)
+                os.system(cmd)
+        
 
     def _to_mni(self,to_mni,mni_template):
         pass #### TO DO    
@@ -68,9 +89,10 @@ class StimProject(object):
         
         if self.brainsight_file is not None:
             bs = BrainsightSessionFile(self.brainsight_file,out_dir='{subject_dir}/brainsight'.format(subject_dir=self.subject_dir))
-            self.brainsight_samples = BrainsightSamples('{subject_dir}/brainsight/samples.txt'.format(subject_dir=self.subject_dir))
-            self.brainsight_targets = BrainsightTargets('{subject_dir}/brainsight/targets.txt'.format(subject_dir=self.subject_dir), self.subject, self.freesurfer_dir)
-            self.brainsight_electrodes = BrainsightElectrodes('{subject_dir}/brainsight/electrodes.txt'.format(subject_dir=self.subject_dir))
+            self.brainsight_samples = BrainsightSamples('{subject_dir}/brainsight/Sample.txt'.format(subject_dir=self.subject_dir))
+            self.brainsight_targets = BrainsightTargets('{subject_dir}/brainsight/Target.txt'.format(subject_dir=self.subject_dir), self.subject, self.freesurfer_dir)
+            if 'Electrode' in bs.tables_names:
+                self.brainsight_electrodes = BrainsightElectrodes('{subject_dir}/brainsight/Electrode.txt'.format(subject_dir=self.subject_dir))
             
 
     def summary(self,plot_pulses=False, overwrite=False):

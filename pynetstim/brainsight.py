@@ -27,21 +27,30 @@ class BrainsightSessionFile(object):
         self.f = open(self.bs_session_file,'r').read().split('\n')
         self.tables = [(i,header) for i,header in enumerate(self.f) if '# ' in header]  #### finding where sub-tables start
         self.tables = self.tables + [(len(self.f),'# End')]
+        self.tables = self.tables[6:]
+        self.tables_names = [x[1].split(' ')[1] for x in self.tables][0:-1]
+        
+        for name in self.tables_names:
+            print name
+            if name=='Target':
+                self._parse_table(name,self.base_name+name+'.txt', exclusion='Sample')
+            else:
+                self._parse_table(name,self.base_name+name+'.txt')
         
         # target table 
-        self._parse_table('Target',self.base_name+'targets.txt',exclusion='Sample')
+        #self._parse_table('Target',self.base_name+'targets.txt',exclusion='Sample')
     
         # Samples
-        self._parse_table('Sample',self.base_name+'samples.txt')
+        #self._parse_table('Sample',self.base_name+'samples.txt')
         
         # Electrodes
-        self._parse_table('Electrode',self.base_name+'electrodes.txt')
+        #self._parse_table('Electrode',self.base_name+'electrodes.txt')
         
         # planned landmarks
-        self._parse_table('Planned Landmark',self.base_name+'planned_landmarks.txt')
+        #self._parse_table('Planned Landmark',self.base_name+'planned_landmarks.txt')
         
         # session landmark
-        self._parse_table('Session Landmark',self.base_name+'session_landmarks.txt')
+        #self._parse_table('Session Landmark',self.base_name+'session_landmarks.txt')
         
     
     def _find_start_and_end(self,tables,table):
@@ -99,13 +108,14 @@ class BrainsightTargets(FreesurferCoords):
         
 class BrainsightSamples(object):
     
-    def __init__(self,samples_file):
+    def __init__(self, samples_file, rename_sessions=True):
         
         self.samples_file = samples_file
         self._dirname = os.path.dirname(self.samples_file)
-        self._load_dataframe()
+        self._load_dataframe(rename_sessions)
         self.sessions_names = np.unique(self._df.session_name)
         self._sessions = defaultdict(dict)
+        
         
         for session in self.sessions_names:
             session_samples, stims_sequence, targets_stims, session_targets = self._load_session(session)
@@ -115,13 +125,23 @@ class BrainsightSamples(object):
             self._sessions[session]['targets'] = session_targets
         
             
-    def _load_dataframe(self):
+    def _load_dataframe(self, rename_sessions):
         self._df = pd.read_table(self.samples_file)
         numeric_columns = [u'loc_x',
        u'loc_y', u'loc_z', u'm0n0', u'm0n1', u'm0n2', u'm1n0', u'm1n1',
        u'm1n2', u'm2n0', u'm2n1', u'm2n2', u'dist_to_target', u'target_error',
        u'angular_error', u'twist_error']
         self._df[numeric_columns] = self._df[numeric_columns].apply(pd.to_numeric,errors='coerce')
+        
+        ## renaming sessions names
+        if rename_sessions:
+            s = np.unique(self._df['session_name'])
+            ss = {x:'Session {i}'.format(i=i+1) for i,x in enumerate(s)} ### renaming the sessions to Session 1, Session 2, ... 
+            def change_name(x):
+                return ss[x]
+            
+            self._df['session_name'] = self._df['session_name'].apply(change_name)
+
             
     def _load_session(self,session):
         

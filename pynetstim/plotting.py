@@ -69,8 +69,10 @@ class plotting_points(object):
         
         if self.show_average:
             self._show_average()
+            
+        self._show()
         
-    def show(self):
+    def _show(self):
         mlab.show()
          
          
@@ -111,7 +113,7 @@ class plotting_points(object):
                 
     def _show_skin(self):
         
-        skin_surf = Surf('{subjects_dir}/{subject}/bem/lh.watershed_outer_skin_surface'.format(subjects_dir=self.subjects_dir, subject=self.subject))
+        skin_surf = Surf('{subjects_dir}/{subject}/bem/outer_skin_surface'.format(subjects_dir=self.subjects_dir, subject=self.subject))
         mlab.triangular_mesh(skin_surf.vertices[:,0], skin_surf.vertices[:,1], skin_surf.vertices[:,2], skin_surf.faces, opacity=0.2, color=(1,1,0))
         
     def _show_annot(self):
