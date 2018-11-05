@@ -5,7 +5,7 @@ Author: Ehsan Tadayon, M.D. [sunny.tadayon@gmail.com / stadayon@bidmc.harvard.ed
 
 from surfer import Brain
 from mayavi import mlab
-from utils import Surf,FreesurferSurf
+from surface import Surf,FreesurferSurf
 from nilearn.plotting import plot_anat
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,7 +15,7 @@ import os
 class plotting_points(object):
     
     def __init__(self, points, hemi='both', surf='pial', map_surface=None, annot=None, map_to_annot=None, show_skin=True, show_roi=False,
-        show_name=False, show_directions=False, background='black', show_average=False, opacity=1, scale_factor=.5, color=(1,0,0), use_default=True):
+        show_name=False, show_directions=False, background='white', show_average=False, opacity=1, scale_factor=.5, color=(1,0,0), use_default=True,out_dir=None,prefix=None):
      
         self.points = points
         self.subject = points.subject
@@ -36,6 +36,8 @@ class plotting_points(object):
         self.color=color
         self.scale_factor = scale_factor
         self.use_default = use_default
+        self.out_dir = out_dir
+        self.prefix=prefix
 
         
         self._create_default()
@@ -70,7 +72,10 @@ class plotting_points(object):
         if self.show_average:
             self._show_average()
             
-        self._show()
+        if self.out_dir is not None:
+            self._save_image()
+        else:
+            self._show()
         
     def _show(self):
         mlab.show()
@@ -108,8 +113,7 @@ class plotting_points(object):
                     p2 = point.direction[6:9]
                     U,W,V = zip(p0,p1,p2)
                     plot_directions(X,Y,Z,U,W,V)
-                    
-               
+                            
                 
     def _show_skin(self):
         
@@ -130,6 +134,23 @@ class plotting_points(object):
         avg_coord = np.mean(self.points.coordinates['ras_tkr_coord'],axis=0)
         mlab.points3d(avg_coord[0],avg_coord[1], avg_coord[2], color=color, scale_factor=scale_factor)
         
+    def _save_image(self,views=['lat','med','dor','ros','caud'],filetype='jpg'):
+        if not os.path.exists(self.out_dir):
+            os.makedirs(self.out_dir)
+        prefix = self.out_dir+'/'+self.prefix
+        
+        self._brain.save_imageset(prefix=prefix,views=views,filetype=filetype)
+        mlab.close()
+        fig,ax = plt.subplots(1,len(views),figsize=(15,8))
+        for i,view in enumerate(views):
+            img_name = prefix+'_'+view+'.'+filetype
+            img = plt.imread(img_name)
+            ax[i].imshow(img)
+            ax[i].set_axis_off()
+            os.remove(img_name)
+            
+        fig.savefig(prefix+'.png',bbox_inches='tight',dpi=600)
+        plt.close()
 
 
 
@@ -150,7 +171,6 @@ class plotting_points_fast(plotting_points):
                       scale_factor = self.scale_factor*8,reset_zoom=False, color=self.color, opacity = self.opacity)
             
         
-    
     
         
 def plot_directions(x,y,z,u,v,w):
