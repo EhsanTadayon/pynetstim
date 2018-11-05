@@ -6,6 +6,7 @@ from targets import Targets
 from coordinates import Coords
 from simnibs import sim_struct, run_simulation
 from surface import Surf
+from utils import make_head_model
 
 class Simnibs(object):
     
@@ -13,8 +14,10 @@ class Simnibs(object):
     def __init__(self, subject, simnibs_dir, out_dir):
         self.subject = subject
         self.simnibs_dir = simnibs_dir
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
         self.out_dir = out_dir
-        
+        make_head_model('fs_'+subject, self.simnibs_dir)
         
         
     def register_T1_to_simnibs(self):
@@ -32,26 +35,30 @@ class Simnibs(object):
         wf.add_nodes([flirt])
         wf.run()
         
-    def add_targets(self, ras_coords, directions,targets_csv_fname,t12simnibs=False, project_to_skin=True, distance=4, names=None, colors=None):
+    def add_targets(self, targets, csv_fname, t12simnibs=False, project2skin=True, distance=4):
         
-        if not os.path.exists(os.path.join(self.out_dir,'T1_to_simnibs_registration')):
-            self.register_T1_to_simnibs()
+        ras_coords = targets.coordinates['ras_coord']
         
         if t12simnibs:
-            coordsObj = Coords(ras_coords,os.path.join(self.simnibs_dir,'m2m_'+self.subject,'T1fs.nii.gz'))
+            if not os.path.exists(os.path.join(self.out_dir,'T1_to_simnibs_registration')):
+                self.register_T1_to_simnibs()
+            
+                
+            coordsObj = Coords(targets.coordinates['ras_coord'],os.path.join(self.simnibs_dir,'m2m_'+self.subject,'T1fs.nii.gz'))
             t12simnibs_reg = os.path.join(self.out_dir,'T1_to_simnibs_registration','flirt','T12Simnibs.mat')
             ras_coords = coordsObj.img2imgcoord(os.path.join(self.simnibs_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz'),t12simnibs_reg,type='xfm')
             
-        if project_to_skin:
-            skin_file = os.path.join(self.simnibs_dir,'fs_'+self.subject,'bem','lh.surf_outer_skin_surface')
-            skin_surf = Surf(skin_file)
+        if project2skin is True:
+            if not os.path.isfile('{subjects_dir}/{subject}/bem/outer_skin_surface'.format(subjects_dir=self.simnibs_dir,subject='fs_'+self.subject)):
+                make_head_model('fs_'+self.subject,self.simnibs_dir)
+                
+            skin_surf = Surf('{simnibs_dir}/{subject}/bem/outer_skin_surface'.format(simnibs_dir=self.simnibs_dir, subject='fs_'+self.subject))
             mapped_vertices, ras_coords = skin_surf.project_coords(ras_coords)
             
-        self.targets = Targets(ras_coords,'fs_'+self.subject, self.simnibs_dir, names=names, colors=colors, directions=directions)
+        self.targets = Targets(ras_coords, 'fs_'+self.subject, self.simnibs_dir, direction = targets.direction)
         
-         
-        self.targets_csv_fname = targets_csv_fname   
-        self._targets_to_csv(targets_csv_fname)
+        self.csv_fname = csv_fname   
+        self._targets_to_csv(csv_fname)
             
             
     def _targets_to_csv(self, fname, dist=4):
@@ -62,7 +69,7 @@ class Simnibs(object):
         f = open(os.path.join(self.out_dir,'simnibs_targets',fname),'w')
             
         for target in self.targets:
-            if target.name is None:
+            if not hasattr(target,'name'):
                 target.name='tms_target'
                 
             row = ['CoilPos']+ target.ras_coord.tolist() + target.direction.tolist()[6:] + target.direction.tolist()[3:6] + [dist] + [target.name]
@@ -71,7 +78,7 @@ class Simnibs(object):
         
         
     
-    def run_simnibs(self, sim_output_name,fnamecoil='MagVenture_MC_B70.ccd',overwrite=False):
+    def run_simnibs(self, sim_output_name,fnamecoil='MagVenture_MC_B70.ccd',didt=1e6, overwrite=False):
         
         s = sim_struct.SESSION()
         s.fnamehead = os.path.join(self.simnibs_dir,self.subject+'.msh')
@@ -86,7 +93,10 @@ class Simnibs(object):
         s.map_to_surf = True
         tms = s.add_tmslist()
         tms.fnamecoil = os.path.join(Simnibs.SIMNIBSDIR,'ccd-files',fnamecoil)
-        tms.add_positions_from_csv(os.path.join(self.out_dir,'simnibs_targets',self.targets_csv_fname))
+        tms.add_positions_from_csv(os.path.join(self.out_dir,'simnibs_targets',self.csv_fname))
+        for p in tms.pos:
+            p.didt = didt
+        
         run_simulation(s)
     
             
