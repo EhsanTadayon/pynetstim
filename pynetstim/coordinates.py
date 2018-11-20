@@ -179,7 +179,7 @@ class FreesurferCoords(Coords):
             else:
                 warnings.warn('Could not determine hemiphere for point {x},{y},{z}. Right hemiphere has been chosen arbitrarily for this point. Manually set the hemiphere for this point by calling set_hemi_manually!'.format(x=self.coordinates['ras_coord'][s,0], y=self.coordinates['ras_coord'][s,1], z=self.coordinates['ras_coord'][s,2]))
                 
-                self.hemi_not_determined.append(s)
+                self._hemis_not_determined.append(s)
                 self.hemi.append('rh')
                  
         self.hemi = np.array(self.hemi)
@@ -188,8 +188,8 @@ class FreesurferCoords(Coords):
     def set_hemi_manually(self, n, hemi):
         
         self.hemi[n] = hemi
-        if n in self.hemi_not_determined:
-            self.hemi_not_determined.remove(n)
+        if n in self._hemis_not_determined:
+            self.hemis_not_determined.remove(n)
         
         
     def _read_talaraich_transformation(self):
@@ -256,14 +256,18 @@ class FreesurferCoords(Coords):
         lh_coords = self.coordinates['ras_tkr_coord'][self.hemi=='lh',:]
         rh_coords = self.coordinates['ras_tkr_coord'][self.hemi=='rh',:]
 
-        lh_colors, lh_structures = lh_annot.map_coords(lh_coords , map_surface=map_surface)
-        rh_colors, rh_structures = rh_annot.map_coords(rh_coords, map_surface=map_surface)
+        if np.sum(self.hemi=='lh')>0:
+            colors[self.hemi=='lh',:] = lh_colors
+            structures[self.hemi=='lh'] = ['lh_' + x.decode('UTF-8') for x in lh_structures]
+
+        if np.sum(self.hemi=='rh')>0:
+            colors[self.hemi=='rh',:] = rh_colors
+            structures[self.hemi=='rh'] = ['rh_' + x.decode('UTF-8') for x in rh_structures]
         
+    
         colors[self.hemi=='lh',:] = lh_colors
         colors[self.hemi=='rh',:] = rh_colors
-        
-        structures[self.hemi=='lh'] = ['lh_' + x.decode('UTF-8') for x in lh_structures]
-        structures[self.hemi=='rh'] = ['rh_' + x.decode('UTF-8') for x in rh_structures]
+    
         
         if inplace:
             self.add_trait('color',colors)
