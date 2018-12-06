@@ -38,6 +38,8 @@ class plotting_points(object):
         self.use_default = use_default
         self.out_dir = out_dir
         self.prefix=prefix
+        self.name_scale = name_scale
+        self.name_color = name_color
 
         
         self._create_default()
@@ -103,7 +105,7 @@ class plotting_points(object):
                     self._brain.add_label(point.roi, hemi=point.hemi, color=point.roi.color)
                     
                 if self.show_name and hasattr(point,'name'):
-                    mlab.text3d(point.ras_tkr_coord[0], point.ras_tkr_coord[1], point.ras_tkr_coord[2], point.name, scale=4)
+                    mlab.text3d(point.ras_tkr_coord[0], point.ras_tkr_coord[1], point.ras_tkr_coord[2], point.name, scale=self.name_scale, color=self.name_color)
                     
                 if self.show_directions and hasattr(point,'direction'):
                     origin = point.ras_tkr_coord.flatten().tolist()
