@@ -257,17 +257,14 @@ class FreesurferCoords(Coords):
         rh_coords = self.coordinates['ras_tkr_coord'][self.hemi=='rh',:]
 
         if np.sum(self.hemi=='lh')>0:
+            lh_colors, lh_structures = lh_annot.map_coords(lh_coords, map_surface = map_surface)
             colors[self.hemi=='lh',:] = lh_colors
             structures[self.hemi=='lh'] = ['lh_' + x.decode('UTF-8') for x in lh_structures]
 
         if np.sum(self.hemi=='rh')>0:
+            rh_colors, rh_structures = rh_annot.map_coords(rh_coords, map_surface = map_surface)
             colors[self.hemi=='rh',:] = rh_colors
             structures[self.hemi=='rh'] = ['rh_' + x.decode('UTF-8') for x in rh_structures]
-        
-    
-        colors[self.hemi=='lh',:] = lh_colors
-        colors[self.hemi=='rh',:] = rh_colors
-    
         
         if inplace:
             self.add_trait('color',colors)
