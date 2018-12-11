@@ -8,6 +8,9 @@ import numpy as np
 from collections import defaultdict
 import os
 from coordinates import Coords, FreesurferCoords
+from datetime import datetime
+from pymisc.plotting import clean_plot
+import matplotlib.pyplot as plt
 
 
 class BrainsightSessionFile(object):
@@ -201,11 +204,11 @@ class BrainsightSamples(object):
                 return session_samples.iloc[start:end]
                 #except:
                     #raise ValueError('chunk exceeds the range')
-                
 
 
 
 class BrainsightElectrodes(object):
+    
     def __init__(self,electrodes_file):
         self.electrodes_file = electrodes_file
         self._df = pd.read_table(electrodes_file,na_values='(null)')
@@ -218,7 +221,46 @@ class BrainsightElectrodes(object):
 
 
 
+def chunk_samples(samples_df, thr=50):
+    
+    ### reading time 
+    fmt = '%H:%M:%S.%f'
+    t = [datetime.strptime(x,fmt) for x in samples_df.time]
+    d = map(lambda i: t[i] - t[i-1], np.arange(1,len(t)))
+    d = [x.seconds for x in d] # to seconds
+    d = [0] + d # to account for the first sample
+    d = np.array(d)
+    idx = np.where(d>thr)[0]
+    
+    ## chunks
+    chunks = {}
+    for i in range(len(idx)):
+        if i==0:
+            chunks[i] = samples_df.iloc[0:idx[i]]
+        elif i<len(idx)-1:
+            chunks[i] = samples_df.iloc[idx[i-1]:idx[i]]
+        elif i==len(idx)-1:
+            chunks[i] = samples_df.iloc[idx[i]:]
+    return chunks
+    
+def plot_chunks(chunks,col='target_error',figsize=(8,6)):
+    
+    fig,ax = plt.subplots(figsize=figsize)
+    for chunk in chunks:
+        ax.plot(chunks[chunk].index, chunks[chunk][col].values,'*-')
+
+    ymax = ax.get_ylim()[1]
+    for chunk in chunks:
+        ax.fill_between(chunks[chunk].index,0,ymax,alpha=.2)
+
+    ax.set_ylabel(col)
+    ax.set_xlabel('pulse number')
         
+    fig,ax = clean_plot(fig,ax)
+    return fig,ax
+    
+
+
             
         
     
