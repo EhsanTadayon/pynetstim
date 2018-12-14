@@ -222,7 +222,8 @@ class BrainsightElectrodes(object):
 
 
 def chunk_samples(samples_df, thr=50):
-    
+    samples_df = samples_df.copy()
+  
     ### reading time 
     fmt = '%H:%M:%S.%f'
     t = [datetime.strptime(x,fmt) for x in samples_df.time]
@@ -230,31 +231,33 @@ def chunk_samples(samples_df, thr=50):
     d = [x.seconds for x in d] # to seconds
     d = [0] + d # to account for the first sample
     d = np.array(d)
-    idx = np.where(d>thr)[0]
-    
+    idx = np.where(d>thr)[0].tolist()
+
+    idx = [0] + idx + [len(d)-1]
+    print idx
+
     ## chunks
     chunks = {}
-    for i in range(len(idx)):
-        if i==0:
-            chunks[i] = samples_df.iloc[0:idx[i]]
-        elif i<len(idx)-1:
-            chunks[i] = samples_df.iloc[idx[i-1]:idx[i]]
-        elif i==len(idx)-1:
-            chunks[i] = samples_df.iloc[idx[i]:]
+    for i in range(1,len(idx[1:])+1):
+        chunks[i] = samples_df.iloc[idx[i-1]:idx[i]]
     return chunks
+        
     
 def plot_chunks(chunks,col='target_error',figsize=(8,6)):
     
     fig,ax = plt.subplots(figsize=figsize)
     for chunk in chunks:
         ax.plot(chunks[chunk].index, chunks[chunk][col].values,'*-')
-
+    
     ymax = ax.get_ylim()[1]
     for chunk in chunks:
         ax.fill_between(chunks[chunk].index,0,ymax,alpha=.2)
 
     ax.set_ylabel(col)
     ax.set_xlabel('pulse number')
+    
+    #ylim
+    ax.set_ylim(0,ymax)
         
     fig,ax = clean_plot(fig,ax)
     return fig,ax
