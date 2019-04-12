@@ -11,20 +11,20 @@ from utils import make_head_model
 class Simnibs(object):
     
     SIMNIBSDIR='/Users/stadayon/simnibs_2.1.1'
-    def __init__(self, subject, simnibs_dir, out_dir):
+    def __init__(self, subject, mri2mesh_dir, out_dir):
         self.subject = subject
-        self.simnibs_dir = simnibs_dir
+        self.mri2mesh_dir = mri2mesh_dir
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
         self.out_dir = out_dir
-        make_head_model('fs_'+subject, self.simnibs_dir)
+        make_head_model('fs_'+subject, self.mri2mesh_dir)
         
         
     def register_T1_to_simnibs(self):
         
         flirt = Node(FLIRT(),name='flirt')
-        flirt.inputs.in_file = os.path.join(self.simnibs_dir,'m2m_'+self.subject,'T1fs.nii.gz')
-        flirt.inputs.reference = os.path.join(self.simnibs_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz')
+        flirt.inputs.in_file = os.path.join(self.mri2mesh_dir,'m2m_'+self.subject,'T1fs.nii.gz')
+        flirt.inputs.reference = os.path.join(self.mri2mesh_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz')
         flirt.inputs.out_file = 'T1_in_Simnibs.nii.gz'
         flirt.inputs.out_matrix_file = 'T12Simnibs.mat'
         flirt.inputs.searchr_x = [-180,180]
@@ -44,18 +44,18 @@ class Simnibs(object):
                 self.register_T1_to_simnibs()
             
                 
-            coordsObj = Coords(targets.coordinates['ras_coord'],os.path.join(self.simnibs_dir,'m2m_'+self.subject,'T1fs.nii.gz'))
+            coordsObj = Coords(targets.coordinates['ras_coord'],os.path.join(self.mri2mesh_dir,'m2m_'+self.subject,'T1fs.nii.gz'))
             t12simnibs_reg = os.path.join(self.out_dir,'T1_to_simnibs_registration','flirt','T12Simnibs.mat')
-            ras_coords = coordsObj.img2imgcoord(os.path.join(self.simnibs_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz'),t12simnibs_reg,type='xfm')
+            ras_coords = coordsObj.img2imgcoord(os.path.join(self.mri2mesh_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz'),t12simnibs_reg,type='xfm')
             
         if project2skin is True:
-            if not os.path.isfile('{subjects_dir}/{subject}/bem/outer_skin_surface'.format(subjects_dir=self.simnibs_dir,subject='fs_'+self.subject)):
-                make_head_model('fs_'+self.subject,self.simnibs_dir)
+            if not os.path.isfile('{subjects_dir}/{subject}/bem/outer_skin_surface'.format(subjects_dir=self.mri2mesh_dir,subject='fs_'+self.subject)):
+                make_head_model('fs_'+self.subject,self.mri2mesh_dir)
                 
-            skin_surf = Surf('{simnibs_dir}/{subject}/bem/outer_skin_surface'.format(simnibs_dir=self.simnibs_dir, subject='fs_'+self.subject))
+            skin_surf = Surf('{mri2mesh_dir}/{subject}/bem/outer_skin_surface'.format(mri2mesh_dir=self.mri2mesh_dir, subject='fs_'+self.subject))
             mapped_vertices, ras_coords = skin_surf.project_coords(ras_coords)
             
-        self.targets = Targets(ras_coords, 'fs_'+self.subject, self.simnibs_dir, direction = targets.direction)
+        self.targets = Targets(ras_coords, 'fs_'+self.subject, self.mri2mesh_dir, direction = targets.direction)
         
         self.csv_fname = csv_fname   
         self._targets_to_csv(csv_fname)
@@ -81,13 +81,14 @@ class Simnibs(object):
     def run_simnibs(self, sim_output_name,fnamecoil='MagVenture_MC_B70.ccd',didt=1e6, overwrite=False):
         
         s = sim_struct.SESSION()
-        s.fnamehead = os.path.join(self.simnibs_dir,self.subject+'.msh')
+        s.fnamehead = os.path.join(self.mri2mesh_dir,self.subject+'.msh')
         try:
             if overwrite:
                os.rmdir(os.path.join(self.out_dir,'simnibs_simulations',sim_output_name)) 
             os.makedirs(os.path.join(self.out_dir,'simnibs_simulations',sim_output_name))
         except:
-            raise 
+            raise OSError('simulation directory exists, overwrite=True to overwrite the results!')
+            
         s.pathfem = os.path.join(self.out_dir,'simnibs_simulations',sim_output_name)
         s.map_to_vol = True
         s.map_to_surf = True
@@ -99,7 +100,7 @@ class Simnibs(object):
         
         run_simulation(s)
     
-            
+    
     
         
     

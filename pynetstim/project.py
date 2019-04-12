@@ -3,16 +3,16 @@ Main stimulation project functions and classes
 Author: Ehsan Tadayon, M.D. [sunny.tadayon@gmail.com / stadayon@bidmc.harvard.edu]
 """
 
-from coordinates import Coords, FreesurferCoords
-from surface import Surf, FreesurferSurf
-from brainsight import BrainsightSessionFile, BrainsightSamples, BrainsightTargets, BrainsightElectrodes
+from .coordinates import Coords, FreesurferCoords
+from .surface import Surf, FreesurferSurf
+from .brainsight import BrainsightSessionFile, BrainsightSamples, BrainsightTargets, BrainsightElectrodes
 import os
 from pymisc.htmlreport import HtmlDoc
 from nipype.interfaces.fsl import FLIRT,FNIRT
-from plotting import plotting_points_fast
+from .plotting import plotting_points_fast
 import numpy as np
 from scipy.spatial.distance import cdist
-from utils import make_head_model
+from .utils import make_head_model
 import shutil
 
 

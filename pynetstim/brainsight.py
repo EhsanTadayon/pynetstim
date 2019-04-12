@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from collections import defaultdict
 import os
-from coordinates import Coords, FreesurferCoords
+from .coordinates import Coords, FreesurferCoords
 from datetime import datetime
 from pymisc.plotting import clean_plot
 import matplotlib.pyplot as plt
@@ -34,9 +34,9 @@ class BrainsightSessionFile(object):
         self.tables_names = [x[1].split(' ')[1] for x in self.tables][0:-1]
         
         for name in self.tables_names:
-            print name
+            print(name)
             if name=='Target':
-                self._parse_table(name,self.base_name+name+'.txt', exclusion='Sample')
+                self._parse_table(name,self.base_name+name+'.txt', exclusion=None)
             else:
                 self._parse_table(name,self.base_name+name+'.txt')
         
@@ -138,7 +138,9 @@ class BrainsightSamples(object):
         
         ## renaming sessions names
         if rename_sessions:
-            s = np.unique(self._df['session_name'])
+            temp = self._df['session_name'].values.tolist()
+            sidx = np.unique(self._df['session_name'],return_index=True)[1]
+            s = [temp[idx] for idx in sorted(sidx)]
             ss = {x:'Session {i}'.format(i=i+1) for i,x in enumerate(s)} ### renaming the sessions to Session 1, Session 2, ... 
             def change_name(x):
                 return ss[x]
@@ -234,7 +236,7 @@ def chunk_samples(samples_df, thr=50):
     idx = np.where(d>thr)[0].tolist()
 
     idx = [0] + idx + [len(d)-1]
-    print idx
+    print(idx)
 
     ## chunks
     chunks = {}

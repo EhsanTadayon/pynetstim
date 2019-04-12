@@ -1,27 +1,10 @@
-PyNetStim: Brain Network Stimulation in Python
+PyNetStim: Brain Network Stimulation Package
 ===============================================
 
 <img src='./docs/temp-log.png' height=300px width=300px style="horizontal-align:middle">
 
-pynetstim is aiming to create an integrated framework for brain network stimulation and stimulation targeting.
+pynetstim is aiming to create an integrated framework for brain network stimulation and stimulation targeting.The main goal of pynetstim is to provide a framework for ** individualizing stimulation sites by integrating computational modeling, multimodal imaging as well as stimulation simulation**.
 
-## Major goal: 
-
-The main goal of pynetstim is to provide a framework for ** individualizing stimulation sites by integrating computational modeling, multimodal imaging as well as stimulation simulation**.
-
-
-## Minor goals:
-
-
-There are several minor goals that pynetstim aims to achieve: 
-
-- provide a framework for <b>visualization</b> of : 
-
-	-  stimulation targets on cortical surface 
-	-  TMS coil stimulations post TMS session
-	-  multimodal maps to guide brain stimulation
-
-- provides a summary of TMS session (stimulation locations, accuracy, ... )
 
 
 	

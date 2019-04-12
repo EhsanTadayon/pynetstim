@@ -11,5 +11,7 @@ def make_head_model(subject, freesurfer_dir):
             cmd = 'mv {freesurfer_dir}/{subject}/bem/{f} {freesurfer_dir}/{subject}/bem/{f2}'.format(f=f,f2=f.split('lh.surf_')[1],subject=subject, freesurfer_dir=freesurfer_dir)
             os.system(cmd)
     except OSError:
-        print 'head model exists, if you want to recreate the head models, remove the directory:\n{d}'.format(d='{freesurfer_dir}/{subject}/bem'.format(freesurfer_dir=freesurfer_dir, subject=subject))
+        print('head model exists, if you want to recreate the head models, remove the directory:\n{d}'.format(d='{freesurfer_dir}/{subject}/bem'.format(freesurfer_dir=freesurfer_dir, subject=subject)))
     
+    except:
+        raise

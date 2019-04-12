@@ -11,8 +11,8 @@ import warnings
 from mne.label import grow_labels
 from nipype.interfaces.freesurfer import Label2Vol,Binarize,MRIsCalc
 from nipype import Node, Workflow
-from surface import Surf, FreesurferSurf
-from annotation import Annot
+from .surface import Surf, FreesurferSurf
+from .annotation import Annot
 
 
 
@@ -177,9 +177,12 @@ class FreesurferCoords(Coords):
             elif self.coordinates['fsvoxel_coord'][s,0] < 128:
                 self.hemi.append('rh')   
             else:
-                warnings.warn('Could not determine hemiphere for point {x},{y},{z}. Right hemiphere has been chosen arbitrarily for this point. Manually set the hemiphere for this point by calling set_hemi_manually!'.format(x=self.coordinates['ras_coord'][s,0], y=self.coordinates['ras_coord'][s,1], z=self.coordinates['ras_coord'][s,2]))
+                w = """Could not determine hemiphere for point {x},{y},{z}. Right hemiphere has been chosen arbitrarily for this point.
+                 Manually set the hemiphere for this point by calling set_hemi_manually!"""
+                w = w.format(x=self.coordinates['ras_coord'][s,0], y=self.coordinates['ras_coord'][s,1], z=self.coordinates['ras_coord'][s,2])
+                warnings.warn(w)
                 
-                self._hemis_not_determined.append(s)
+                self.hemi_not_determined.append(s)
                 self.hemi.append('rh')
                  
         self.hemi = np.array(self.hemi)
@@ -188,8 +191,8 @@ class FreesurferCoords(Coords):
     def set_hemi_manually(self, n, hemi):
         
         self.hemi[n] = hemi
-        if n in self._hemis_not_determined:
-            self.hemis_not_determined.remove(n)
+        if n in self.hemi_not_determined:
+            self.hemi_not_determined.remove(n)
         
         
     def _read_talaraich_transformation(self):
@@ -303,7 +306,7 @@ class FreesurferCoords(Coords):
         return mapped_vertices, mapped_coords
 
         
-    def create_surf_roi(self, extents, surface='white', annot=None, out_dir=None):
+    def create_surf_roi(self, extents, surface='white', annot=None,label2vol=True, out_dir=None, ):
         """ creates surface ROIs for each stimulation target
         
         Parameters
@@ -346,11 +349,15 @@ class FreesurferCoords(Coords):
         ### get structures and color for labels according to annotation
         if annot:
             structures, colors = self.map_to_annot(annot, map_surface=surface)
-            
             for i in range(self.npoints):
                 rois[i].color = colors[i]
                 vertex = mapped_vertices[i]
                 rois[i].name = structures[i]+'_{r}mm_{surf}_{vertex}'.format(r=extents[i],surf=surface,vertex=vertex)
+                
+        else:
+            for i in range(self.npoints):
+                rois[i].name = self.name[i]
+
         
         #### saving ROI labels
         if out_dir:
@@ -364,23 +371,25 @@ class FreesurferCoords(Coords):
                 roi_path = '{out_dir}/{roi_name}.label'.format(out_dir=out_dir,roi_name=roi.name)
                 roi.save(roi_path)
                 
-                ### save volume
-                wf = Workflow(name=roi.name+'_vol', base_dir=out_dir)
+                if label2vol:
+                    ### save volume
+                    wf = Workflow(name=roi.name+'_vol', base_dir=out_dir)
                 
-                label2vol = Node(Label2Vol(label_file=roi_path, template_file='{subjects_dir}/{subject}/mri/T1.mgz'.format(subjects_dir=self.subjects_dir, subject=self.subject),
-                        hemi=roi.hemi, proj=(u'frac',0,1,0.01), identity=True, subject_id=self.subject), name='label2vol')
+                    label2vol = Node(Label2Vol(label_file=roi_path,
+                     template_file='{subjects_dir}/{subject}/mri/T1.mgz'.format(subjects_dir=self.subjects_dir, subject=self.subject),
+                     hemi=roi.hemi, proj=(u'frac',0,1,0.01), identity=True, subject_id=self.subject), name='label2vol')
                         
-                mask_dilate = Node(Binarize(dilate=1,erode=1,min=1),name='dilate_label_vol')
-                mris_calc = Node(MRIsCalc(),name='mask_with_gm')
-                mris_calc.inputs.in_file2='{subjects_dir}/{subject}/mri/{hemi}.ribbon.mgz'.format(subjects_dir=self.subjects_dir, subject=self.subject, hemi=roi.hemi)
-                mris_calc.inputs.action='mul'
-                mris_calc.inputs.out_file=roi.name+'.nii.gz'
-                wf.connect([
-                            (label2vol,mask_dilate,[("vol_label_file","in_file")]),
-                            (mask_dilate,mris_calc,[('binary_file','in_file1')]),
-                            ])
+                    mask_dilate = Node(Binarize(dilate=1,erode=1,min=1),name='dilate_label_vol')
+                    mris_calc = Node(MRIsCalc(),name='mask_with_gm')
+                    mris_calc.inputs.in_file2='{subjects_dir}/{subject}/mri/{hemi}.ribbon.mgz'.format(subjects_dir=self.subjects_dir, subject=self.subject, hemi=roi.hemi)
+                    mris_calc.inputs.action='mul'
+                    mris_calc.inputs.out_file=roi.name+'.nii.gz'
+                    wf.connect([
+                                (label2vol,mask_dilate,[("vol_label_file","in_file")]),
+                                (mask_dilate,mris_calc,[('binary_file','in_file1')]),
+                                ])
                     
-                wf.run()
+                    wf.run()
            
         ### converting list to arrays
         self.add_trait('roi', np.array(rois))
@@ -415,7 +424,7 @@ class FreesurferCoords(Coords):
         kwargs = {}
         for trait in self.traits_list:
             if hasattr(self,trait):
-                kwargs[trait] = self.__getattribute__(trait)[self._count]
+                kwargs[trait] = self.__getattribute__(trait)[idx]
                 
         t = _FreesurferCoord(ras_coord = self.coordinates['ras_coord'][idx,:],
                         voxel_coord = self.coordinates['voxel_coord'][idx],

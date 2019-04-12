@@ -5,7 +5,7 @@ Author: Ehsan Tadayon, M.D. [sunny.tadayon@gmail.com / stadayon@bidmc.harvard.ed
 
 from surfer import Brain
 from mayavi import mlab
-from surface import Surf,FreesurferSurf
+from .surface import Surf,FreesurferSurf
 from nilearn.plotting import plot_anat
 import matplotlib.pyplot as plt
 import numpy as np
@@ -15,7 +15,8 @@ import os
 class plotting_points(object):
     
     def __init__(self, points, hemi='both', surf='pial', map_surface=None, annot=None, map_to_annot=None, show_skin=True, show_roi=False,
-        show_name=False, show_directions=False, background='white', show_average=False, opacity=1, scale_factor=.5, color=(1,0,0), use_default=True,out_dir=None,prefix=None):
+        show_name=False, name_scale=1, name_color=(0,0,0), show_directions=False, background='white', show_average=False, opacity=1, scale_factor=.5, color=(1,0,0),
+        use_default=True,out_dir=None,prefix=None,show_plot=True):
      
         self.points = points
         self.subject = points.subject
@@ -40,6 +41,7 @@ class plotting_points(object):
         self.prefix=prefix
         self.name_scale = name_scale
         self.name_color = name_color
+        self.show_plot = show_plot
 
         
         self._create_default()
@@ -80,7 +82,10 @@ class plotting_points(object):
             self._show()
         
     def _show(self):
-        mlab.show()
+        if self.show_plot:
+            mlab.show()
+        else:
+            pass
          
          
     def _add_points(self):
@@ -92,7 +97,8 @@ class plotting_points(object):
             mapped_vertices, mapped_coords = self.points.map_to_surface(self.map_surface)
             mapped_coords = mapped_coords
         
-        for i,point in enumerate(self.points):
+        for i in range(self.points.npoints):
+            point = self.points[i]
         
             if point.hemi==self.hemi or self.hemi=='both':
                

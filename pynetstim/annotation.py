@@ -3,7 +3,7 @@ Implements Freesurfer annotation file
 """
 import nibabel as nib
 import numpy as np
-from surface import FreesurferSurf
+from .surface import FreesurferSurf
 
 
 
