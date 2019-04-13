@@ -2,3 +2,4 @@
 pynetstim/*.pyc
 examples/
 pynetstim/temp/**
+docs/PyNetStim-ProjectLog.docs
