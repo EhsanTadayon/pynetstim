@@ -13,7 +13,7 @@ pynetstim is a python-based package that aims to create an integrated framework 
 
 
 <h2> Contact</h2>
-For further information, please send an email to stadayon@bidmc.harvad.edu
+For further information, please send an email to stadayon@bidmc.harvard.edu
 
 
 
