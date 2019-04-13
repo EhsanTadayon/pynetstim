@@ -3,3 +3,4 @@ pynetstim/*.pyc
 examples/
 pynetstim/temp/**
 docs/PyNetStim-ProjectLog.docs
+pynetstim/*.ipynb_checkpoints
