@@ -5,8 +5,8 @@ Author: Ehsan Tadayon, M.D. [sunny.tadayon@gmail.com / stadayon@bidmc.harvard.ed
 
 
 
-from coordinates import FreesurferCoords, _FreesurferCoord
-from surface import Surf, FreesurferSurf
+from .coordinates import FreesurferCoords, _FreesurferCoord
+from .surface import Surf, FreesurferSurf
 import numpy as np
 import os
 

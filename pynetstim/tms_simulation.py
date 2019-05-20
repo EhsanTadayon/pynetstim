@@ -2,11 +2,11 @@
 from nipype.interfaces.fsl import FLIRT
 from nipype import Workflow, Node
 import os
-from targets import Targets
-from coordinates import Coords
+from .targets import Targets
+from .coordinates import Coords
 from simnibs import sim_struct, run_simulation
-from surface import Surf
-from utils import make_head_model
+from .surface import Surf
+from .utils import make_head_model
 
 class Simnibs(object):
     
