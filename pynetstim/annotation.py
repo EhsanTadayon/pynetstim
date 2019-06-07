@@ -27,12 +27,17 @@ class Annot(object):
     def get_structures(self):
         return self._structures
         
-    def get_vertices(self,vertices):
+    def get_vertices_colors(self,vertices):
         
         labels = self._labels[vertices]
         colors = [self._ctab[x][:3]/255.0 for x in labels]
+        return colors
+        
+    def get_vertices_names(self,vertices):
+        
+        labels = self._labels[vertices]
         structures = [self._structures[x] for x in labels]
-        return colors,structures
+        return structures
         
     def map_coords(self, coords, map_surface='white'):
         
@@ -46,4 +51,4 @@ class Annot(object):
             raise ValueError('map_surface should be either string(white, pial) or FreesurferSurf instance')
         
         mapped_vertices_indices, mapped_vertices_coords = map_surface.project_coords(coords)
-        return self.get_vertices(mapped_vertices_indices)
+        return self.get_vertices_colors(mapped_vertices_indices),self.get_vertices_names(mapped_vertices_indices)

@@ -10,15 +10,17 @@ from nilearn.plotting import plot_anat
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import copy
 
 
 class plotting_points(object):
     
     def __init__(self, points, hemi='both', surf='pial', map_surface=None, annot=None, map_to_annot=None, show_skin=True, show_roi=False,
-        show_name=False, name_scale=1, name_color=(0,0,0), show_directions=False, background='white', show_average=False, opacity=1, scale_factor=.5, color=(1,0,0),
+        show_name=False, name_scale=1, name_color=(0,0,0), show_directions=False, background='white',
+        show_average=False, opacity=1, scale_factor=.5,color=np.array([(1,0,0)]),
         use_default=True,out_dir=None,prefix=None,show_plot=True):
      
-        self.points = points
+        self.points = copy.deepcopy(points)
         self.subject = points.subject
         self.subjects_dir = points.subjects_dir
         self.hemi = hemi
@@ -44,19 +46,25 @@ class plotting_points(object):
         self.show_plot = show_plot
 
         
-        self._create_default()
+        self._set_config()
         self._plot()
         
         
-    def _create_default(self):
+    def _set_config(self):
         
-        if not hasattr(self.points,'color') and self.use_default:
-            self.points.add_trait('color', np.atleast_2d(np.array([self.color]*self.points.npoints)))
+        if not hasattr(self.points,'color'):
+            if self.color.shape[0]==1:
+                self.points.add_trait('color', np.repeat(self.color,self.points.npoints,axis=0))
+                
+            elif self.color.shape[0]==self.points.npoints:
+                self.points.add_trait('color',self.color)
+            else:
+                raise 'Color size is incorrect'
             
-        if not hasattr(self.points, 'scale_factor') and self.use_default:
+        if not hasattr(self.points, 'scale_factor'):
             self.points.add_trait('scale_factor', np.ones(self.points.npoints)*self.scale_factor)
-            
-        if not hasattr(self.points,'opacity') and self.use_default:
+              
+        if not hasattr(self.points,'opacity'):
             self.points.add_trait('opacity',np.ones(self.points.npoints)*self.opacity)
         
         

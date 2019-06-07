@@ -19,11 +19,10 @@ import shutil
 ## TO DO:
 
 
-
-class StimProject(object):
+class BrainsightProject(object):
     
     """ main stimulation project class"""
-    def __init__(self, subject, project_dir, freesurfer_dir=None, simnibs_dir=None, brainsight_file = None, to_mni = False,
+    def __init__(self, subject, project_dir, brainsight_file, freesurfer_dir = None, simnibs_dir = None,to_mni = False,
      mni_template='MNI152_T1_2mm.nii.gz', mni_dir = os.path.join(os.environ['FSLDIR'],'data/standard'), overwrite=None):
         
         self.subject = subject
@@ -37,21 +36,23 @@ class StimProject(object):
         self.project_dir = project_dir  
         self.brainsight_file = brainsight_file    
         self.subject_dir = os.path.join(self.project_dir,subject)
-        self._to_mni=to_mni
+        self._to_mni = to_mni
         self._mni_template = mni_template
         self._mni_dir = mni_dir 
-        self.overwrite=overwrite
+        self.overwrite = overwrite
         self.directories = {}
-    
+        
+        
         self._start_project()
         
     def _start_project(self):
         
         self._start_log()
             
-        if self.brainsight_file is not None:
-            self._read_brainsight_file()
-              
+        ## read brainsight file
+        self._read_brainsight_file()
+        
+        ## 
         if self._to_mni:
             self._to_mni(self.mni_template, self.mni_dir)
                 
@@ -60,17 +61,12 @@ class StimProject(object):
         
     def _start_log(self):
         
-        
         try:
-            os.makedirs('{subject_dir}/logs'.format(subject_dir = self.subject_dir))
-            f = open('{subject_dir}/logs/log.txt'.format(subject_dir = self.subject_dir),'w')
-            f.close()
-            f.close()
-            self.log = []
-        except:
             previous_logs = open('{subject_dir}/logs/log.txt'.format(subject_dir = self.subject_dir),'r').read().split('\n')[0:-1]
+            
             if self.overwrite is None:
                 self.log = previous_logs
+                
             else:
                 if self.overwrite=='all':
                     self.log = []
@@ -83,22 +79,29 @@ class StimProject(object):
                     for p in previous_logs:
                         f.write(p+'\n')
                     f.close()
-                    self.log = previous_logs
+                    self.log = previous_logs    
                     
+        except FileNotFoundError:
+            os.makedirs('{subject_dir}/logs'.format(subject_dir = self.subject_dir))
+            f = open('{subject_dir}/logs/log.txt'.format(subject_dir = self.subject_dir),'w')
+            f.close()
+            f.close()
+            self.log = []
+            
                         
-
     def _add_to_log(self,name):
+        
         f = open('{subject_dir}/logs/log.txt'.format(subject_dir = self.subject_dir),'a')
         f.write(name+'\n')
         f.close()
         self.log.append(name)
         
-    
         
     def _add_dir(self,name):
         
         try:
            os.makedirs('{subject_dir}/{name}'.format(subject_dir=self.subject_dir,name=name))
+           
         except:
            shutil.rmtree('{subject_dir}/{name}'.format(subject_dir=self.subject_dir,name=name),ignore_errors=True)
            os.makedirs('{subject_dir}/{name}'.format(subject_dir=self.subject_dir,name=name))
@@ -112,7 +115,6 @@ class StimProject(object):
             make_head_model(self.subject,self.freesurfer_dir)
             self._add_to_log('make_head_model')
         
-
     def _to_mni(self,mni_template):
         if 'to_mni' not in self.log:
             self._add_dir('mni')
@@ -122,23 +124,18 @@ class StimProject(object):
             self._add_to_log('to_mni')
             
     def _read_brainsight_file(self):
+        
         if 'read_brainsight_file' not in self.log:
             self._add_dir('brainsight')
-            bs = BrainsightSessionFile(self.brainsight_file,out_dir='{subject_dir}/brainsight'.format(subject_dir=self.subject_dir))
-            self.brainsight_samples = BrainsightSamples('{subject_dir}/brainsight/Sample.txt'.format(subject_dir=self.subject_dir))
-            self.brainsight_targets = BrainsightTargets('{subject_dir}/brainsight/Target.txt'.format(subject_dir=self.subject_dir), self.subject, self.freesurfer_dir)
-            if 'Electrode' in bs.tables_names:
-                self.brainsight_electrodes = BrainsightElectrodes('{subject_dir}/brainsight/Electrode.txt'.format(subject_dir=self.subject_dir))
-            
             self._add_to_log('read_brainsight_file')
             
-        else:
-            bs = BrainsightSessionFile(self.brainsight_file,out_dir='{subject_dir}/brainsight'.format(subject_dir=self.subject_dir))
-            self.brainsight_samples = BrainsightSamples('{subject_dir}/brainsight/Sample.txt'.format(subject_dir=self.subject_dir))
-            self.brainsight_targets = BrainsightTargets('{subject_dir}/brainsight/Target.txt'.format(subject_dir=self.subject_dir), self.subject, self.freesurfer_dir)
-            if 'Electrode' in bs.tables_names:
-                self.brainsight_electrodes = BrainsightElectrodes('{subject_dir}/brainsight/Electrode.txt'.format(subject_dir=self.subject_dir))
-            
+        bs = BrainsightSessionFile(self.brainsight_file,out_dir='{subject_dir}/brainsight'.format(subject_dir=self.subject_dir))
+        self.brainsight_samples = BrainsightSamples('{subject_dir}/brainsight/Sample.txt'.format(subject_dir=self.subject_dir))
+        self.brainsight_targets = BrainsightTargets('{subject_dir}/brainsight/Target.txt'.format(subject_dir=self.subject_dir), self.subject, self.freesurfer_dir)
+        
+        if 'Electrode' in bs.tables_names:
+            self.brainsight_electrodes = BrainsightElectrodes('{subject_dir}/brainsight/Electrode.txt'.format(subject_dir=self.subject_dir))
+
 
     def summary(self,plot_pulses=False):
        
