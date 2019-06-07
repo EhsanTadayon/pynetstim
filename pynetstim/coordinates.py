@@ -48,6 +48,8 @@ class Coords(object):
         for trait in traits:
             self.add_trait(trait,traits[trait])     
             
+            
+            
     def add_trait(self,trait,value):
         
         if type(value)!=np.ndarray:
@@ -123,6 +125,24 @@ class Coords(object):
         c = _Coord(ras_coord,voxel_coord,**kwargs)
         return c
         
+    def subset(self,by,vals):
+        
+        idx = []
+        for val in vals:
+            x = np.where(self.__getattribute__(by)==val)[0][0]
+            idx.append(x)
+            
+        idx = np.array(idx)
+                
+        coords =  self.coordinates['ras_coord'][idx,:]
+        
+        traits={}
+        for trait in self.traits_list:
+            traits[trait] = self.__getattribute__(trait)[idx]
+        
+        return Coords(coords, self.img_file, coord_type='ras', **traits)
+    
+        
         
 class _Coord(object):
     def __init__(self, ras_coord, voxel_coord,**kwargs):
@@ -148,27 +168,49 @@ class FreesurferCoords(Coords):
 
     def __init__(self, coords, subject, subjects_dir, guess_hemi=True, **traits):
 
+        """
+        This class implements methods to transform between coordinates in the Freesurfer space.
         
+        Parameters
+        ==========
+        coords: numpy array (n x 3). Coords are RAS coords defined in the native T1 space (rawavg). 
+        subject: Freesurfer subject ID
+        subjects_dir: Freesurfer subjects_dir
+        guess_hemi: uses Freesurfer processed volumes to guess which hemisphere each point belongs to. 
+        **traits: dictionary containing other traits
+        
+        """
         self.subjects_dir = subjects_dir
         self.subject = subject
-        rawavg_file = '{subjects_dir}/{subject}/mri/rawavg.mgz'.format(subjects_dir=subjects_dir,subject=subject)
+        
+        ## setting image file names
+        rawavg_file = '{subjects_dir}/{subject}/mri/rawavg.mgz'.format(subjects_dir=subjects_dir,subject=subject)            
         orig_file = '{subjects_dir}/{subject}/mri/orig.mgz'.format(subjects_dir=subjects_dir,subject=subject)
+        
+        ### loading 
         self.orig_img = nib.freesurfer.load(orig_file)
         self.ras2fsvox = self.orig_img.header.get_ras2vox()
         self.fsvox2ras_tkr = self.orig_img.header.get_vox2ras_tkr()
-        
         self.ras2ras_tkr = np.dot(self.fsvox2ras_tkr,self.ras2fsvox)
         
-        Coords.__init__(self, coords, rawavg_file, coord_type='ras', **traits)        
+        
+        ### initiating Coords class. 
+        Coords.__init__(self, coords, rawavg_file, coord_type='ras', **traits)
+                
         self.coordinates['ras_tkr_coord'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, self._affineM)).T[:,:3]
         self.coordinates['fsvoxel_coord'] = np.round(np.dot(self.ras2fsvox,self._affineM).T[:,:3])
         self.coordinates['talairach_coord'] = self._get_talairach_coords()
         
+        ## guessing hemisphere
         if guess_hemi:
             self._guess_hemi()
             
            
     def _guess_hemi(self):
+        """
+        uses Freesurfer voxel coordinate to guess hemisphere.
+        """
+        
         self.hemi = []
         self.hemi_not_determined = []
         for s in np.arange(self.npoints):
@@ -189,7 +231,9 @@ class FreesurferCoords(Coords):
         
         
     def set_hemi_manually(self, n, hemi):
-        
+        """
+        sets hemisphere manually for point n
+        """
         self.hemi[n] = hemi
         if n in self.hemi_not_determined:
             self.hemi_not_determined.remove(n)
@@ -278,6 +322,10 @@ class FreesurferCoords(Coords):
         
     def map_to_surface(self, surface='white'):
         
+        """
+        maps the points to a surface ( either pial or white) or an instance of Surf class. 
+        """
+        
         if len(self.hemi_not_determined)>0:
             raise ValueError('Use set_hemi_manually to assign hemiphere to these points: %s'%(','.join(self.hemi_not_determined)))
         
@@ -360,6 +408,7 @@ class FreesurferCoords(Coords):
 
         
         #### saving ROI labels
+        rois_path = []
         if out_dir:
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir)
@@ -369,6 +418,7 @@ class FreesurferCoords(Coords):
                 
                 ### saving ROI label
                 roi_path = '{out_dir}/{roi_name}.label'.format(out_dir=out_dir,roi_name=roi.name)
+                rois_path.append(roi_path)
                 roi.save(roi_path)
                 
                 if label2vol:
@@ -393,7 +443,7 @@ class FreesurferCoords(Coords):
            
         ### converting list to arrays
         self.add_trait('roi', np.array(rois))
-        return self.roi    
+        return self.roi,rois_path
         
     def __iter__(self):
         return self
@@ -413,6 +463,7 @@ class FreesurferCoords(Coords):
                            voxel_coord = self.coordinates['voxel_coord'][self._count],
                            ras_tkr_coord = self.coordinates['ras_tkr_coord'][self._count,:],
                            fsvoxel_coord = self.coordinates['fsvoxel_coord'][self._count],
+                           talairach_coord = self.coordinates['talairach_coord'][self._count],
                            hemi = self.hemi[self._count],
                            **kwargs)
                        
@@ -430,28 +481,49 @@ class FreesurferCoords(Coords):
                         voxel_coord = self.coordinates['voxel_coord'][idx],
                         ras_tkr_coord = self.coordinates['ras_tkr_coord'][idx,:],
                         fsvoxel_coord = self.coordinates['fsvoxel_coord'][idx],
+                        talairach_coord = self.coordinates['talairach_coord'][idx],
                         hemi = self.hemi[idx],
                         **kwargs)
         return t
+        
+    def subset(self,by,vals):
+        idx = []
+        for val in vals:
+            x = np.where(self.__getattribute__(by)==val)[0][0]
+            idx.append(x)
+            
+        idx = np.array(idx)
+                
+        coords =  self.coordinates['ras_coord'][idx,:]
+        
+        traits={}
+        for trait in self.traits_list:
+            traits[trait] = self.__getattribute__(trait)[idx]
+        
+        return FreesurferCoords(coords, self.subject, self.subjects_dir, guess_hemi=True, **traits)
 
         
 class _FreesurferCoord(object):
-    def __init__(self,ras_coord, voxel_coord, ras_tkr_coord, fsvoxel_coord, hemi, **kwargs):
+    def __init__(self,ras_coord, voxel_coord, ras_tkr_coord, fsvoxel_coord, talairach_coord, hemi, **kwargs):
+        
+        
         self.ras_coord = ras_coord
         self.voxel_coord = voxel_coord
         self.ras_tkr_coord = ras_tkr_coord
         self.fsvoxel_coord = fsvoxel_coord
+        self.talairach_coord = talairach_coord
         self.hemi = hemi
         
         self.traits_list = []
         for trait,value in kwargs.items():
             self.__setattr__(trait, value)
             self.traits_list.append(trait)
+            
+    def add_trait(self, trait, value):
+        
+        self.__setattr__(trait,value)
+        if trait not in self.traits_list:
+            self.traits_list.append(trait)
 
-        
-        
-        
-        
-        
 
         
