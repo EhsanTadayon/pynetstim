@@ -4,6 +4,9 @@
 ## Updated: 7 June, 2018
 ## Updated: 8 September, 2018
 
+### how to use this code: 
+###### bash yeo2subject.sh <subject> <nNet>
+
 
 
 subj=$1
