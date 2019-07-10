@@ -12,6 +12,15 @@
 subj=$1
 nNet=$2
 
+### copying fsaverage_star
+
+FILE=$SUBJECTS_DIR/fsaverage_star
+if [ -f "FILE"]; then
+	echo "fsaverage_star exists in SUBJECTS_DIR."
+else
+	cp -r fsaverage_star $SUBJECTS_DIR
+fi
+
 # Yeo annotation to subject's annotation
 echo **** Yeo annotation to subjects annotation ****
 
