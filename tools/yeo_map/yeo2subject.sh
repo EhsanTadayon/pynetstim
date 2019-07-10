@@ -7,7 +7,7 @@
 
 
 subj=$1
-nNet=7
+nNet=$2
 
 # Yeo annotation to subject's annotation
 echo **** Yeo annotation to subjects annotation ****
