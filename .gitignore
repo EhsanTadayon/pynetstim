@@ -4,3 +4,5 @@ pynetstim/temp/**
 examples/working_with_brainsight_module/example_data
 docs/PyNetStim-ProjectLog.docs
 pynetstim/*.ipynb_checkpoints
+.DS_Store
+

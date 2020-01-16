@@ -18,7 +18,7 @@ class plotting_points(object):
     def __init__(self, points, hemi='both', surf='pial', map_surface=None, annot=None, map_to_annot=None, show_skin=True, show_roi=False,
         show_name=False, name_scale=1, name_color=(0,0,0), show_directions=False, background='white',
         show_average=False, opacity=1, scale_factor=.5,color=np.array([(1,0,0)]),
-        use_default=True,out_dir=None,prefix=None,show_plot=True):
+        use_default=True,prefix=None):
      
         self.points = copy.deepcopy(points)
         self.subject = points.subject
@@ -39,11 +39,9 @@ class plotting_points(object):
         self.color=color
         self.scale_factor = scale_factor
         self.use_default = use_default
-        self.out_dir = out_dir
         self.prefix=prefix
         self.name_scale = name_scale
         self.name_color = name_color
-        self.show_plot = show_plot
 
         
         self._set_config()
@@ -71,7 +69,7 @@ class plotting_points(object):
     def _plot(self):
         
         ## plot
-        self._brain = Brain(hemi=self.hemi, surf=self.surf, subject_id=self.subject, subjects_dir=self.subjects_dir, background = self.background,offset=False)
+        self.brain = Brain(hemi=self.hemi, surf=self.surf, subject_id=self.subject, subjects_dir=self.subjects_dir, background = self.background,offset=False)
          
         if self.show_skin:
             self._show_skin()
@@ -84,16 +82,10 @@ class plotting_points(object):
         if self.show_average:
             self._show_average()
             
-        if self.out_dir is not None:
-            self._save_image()
-        else:
-            self._show()
         
-    def _show(self):
-        if self.show_plot:
-            mlab.show()
-        else:
-            pass
+    def show(self):
+        mlab.show()
+    
          
          
     def _add_points(self):
@@ -111,12 +103,12 @@ class plotting_points(object):
             if point.hemi==self.hemi or self.hemi=='both':
                
                 if self.map_surface:
-                    self._brain.add_foci(mapped_coords[i,:], hemi=point.hemi, color=point.color, scale_factor=point.scale_factor, alpha=point.opacity)
+                    self.brain.add_foci(mapped_coords[i,:], hemi=point.hemi, color=point.color, scale_factor=point.scale_factor, alpha=point.opacity)
                 else:
-                    self._brain.add_foci(point.ras_tkr_coord, hemi=point.hemi, color=point.color, scale_factor=point.scale_factor, alpha=point.opacity)
+                    self.brain.add_foci(point.ras_tkr_coord, hemi=point.hemi, color=point.color, scale_factor=point.scale_factor, alpha=point.opacity)
                 
                 if self.show_roi and hasattr(point,'roi'):
-                    self._brain.add_label(point.roi, hemi=point.hemi, color=point.roi.color)
+                    self.brain.add_label(point.roi, hemi=point.hemi, color=point.roi.color)
                     
                 if self.show_name and hasattr(point,'name'):
                     mlab.text3d(point.ras_tkr_coord[0], point.ras_tkr_coord[1], point.ras_tkr_coord[2], point.name, scale=self.name_scale, color=self.name_color)
@@ -139,11 +131,11 @@ class plotting_points(object):
     def _show_annot(self):
         
         if self.hemi in ['lh','rh']:
-            self._brain.add_annotation(self.annot, hemi=self.hemi, borders=False)
+            self.brain.add_annotation(self.annot, hemi=self.hemi, borders=False)
             
         elif self.hemi=='both':
-            self._brain.add_annotation(self.annot, hemi='lh', borders=False)
-            self._brain.add_annotation(self.annot, hemi='rh', borders=False, remove_existing=False)
+            self.brain.add_annotation(self.annot, hemi='lh', borders=False)
+            self.brain.add_annotation(self.annot, hemi='rh', borders=False, remove_existing=False)
             
     def _show_average(self,scale_factor=6, color=(0,0,1)):
         
@@ -155,7 +147,7 @@ class plotting_points(object):
             os.makedirs(self.out_dir)
         prefix = self.out_dir+'/'+self.prefix
         
-        self._brain.save_imageset(prefix=prefix,views=views,filetype=filetype)
+        self.brain.save_imageset(prefix=prefix,views=views,filetype=filetype)
         mlab.close()
         fig,ax = plt.subplots(1,len(views),figsize=(15,8))
         for i,view in enumerate(views):
