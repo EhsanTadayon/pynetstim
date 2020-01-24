@@ -12,10 +12,11 @@ from datetime import datetime
 import matplotlib.pyplot as plt
 from .surface import Surf, FreesurferSurf
 from nipype.interfaces.fsl import FLIRT,FNIRT
-from .plotting import plotting_points_fast
+from .plotting import plotting_points_fast,plotting_points
 from scipy.spatial.distance import cdist
 from .utils import make_head_model, HtmlDoc, clean_plot
 import shutil
+
 
 ##### Classes in this module: 
 ##### ---- 1. BrainsightSessionFile
@@ -35,7 +36,7 @@ class BrainsightSessionFile(object):
     
     """ reading and parsing brainsight session output file, currently outputs: targets, samples, electrodes, planned landmarks, and session landmarks"""
     
-    def __init__(self,bs_session_file,base_name='', out_dir='.'):
+    def __init__(self, bs_session_file, base_name='', out_dir='.'):
     
         self.bs_session_file = bs_session_file
         self.base_name = base_name
@@ -94,29 +95,44 @@ class BrainsightSessionFile(object):
 ##                                      BrainsightTargets
 ###################################################################################################     
 
-class BrainsightTargets(FreesurferCoords):
+class BrainsightTargets(object):
     
-    def __init__(self, targets_file, subject, freesurfer_dir):
+    def __init__(self, targets_file, subject=None, anat_img=None, freesurfer_dir=None):
         
         self.targets_file = targets_file 
+        self.subject = subject
+        self.freesurfer_dir = freesurfer_dir
+        self.anat_img = anat_img
         self._df = pd.read_table(targets_file)
-            
-        coords = self._df[['loc_x','loc_y','loc_z']].values
-        guess_hemi=True
-        name = self._df['target_name'].values
-        direction = self._df[['m0n0','m0n1','m0n2','m1n0','m1n1','m1n2','m2n0','m2n1','m2n2']].values
-        FreesurferCoords.__init__(self,coords, subject, freesurfer_dir, name=name, direction=direction)
         
-    def get_coords(self,targets=None):
-        if targets is None:
-            targets = self.name
             
-        return self._df[self._df.target_name.apply(lambda x: x in targets)][['loc_x','loc_y','loc_z']].values
+    def get_coord(self):
+        return self._df[['loc_x','loc_y','loc_z']].values
+        
+    def get_direction(self):
+        return self._df[['m0n0','m0n1','m0n2','m1n0','m1n1','m1n2','m2n0','m2n1','m2n2']].values    
+        
+    def get_name(self):
+        return self._df['target_name'].values
         
     def get_table(self):
         return self._df.copy()
+        
+    def to_freesurfer_coords(self):
+        if self.subject is None or self.freesurfer_dir is None:
+            raise('both subject and freesurfer_dir should be provided!')
+        fscoords = FreesurferCoords(self.get_coord(), subject=self.subject, freesurfer_dir=self.freesurfer_dir,
+                                                    name=self.get_name(), direction=self.get_direction())
+        return fscoords
+        
+    def to_coords(self):
+        coords = Coords(self.get_coord(), img_file=self.anat_img, subject=self.subject, name=self.get_name(), direction=self.get_direction())
+        return coords
+         
     
+        
     
+
 
 ###################################################################################################    
 ##                                      BrainsightSamples
@@ -198,7 +214,7 @@ class BrainsightSamples(object):
     def get_stims_sequence(self,session):
         return self._sessions[session]['stims_sequence']
         
-    def get_targets(self, session):
+    def get_session_targets(self, session):
         return self._sessions[session]['targets']
                 
     def get_target_stims(self,target,session=None, chunk=None):
@@ -271,16 +287,50 @@ def plot_chunks(chunks,col='target_error',figsize=(8,6)):
 ###################################################################################################     
 class BrainsightElectrodes(object):
     
-    def __init__(self,electrodes_file):
+    def __init__(self,electrodes_file, subject=None, freesurfer_dir=None):
         self.electrodes_file = electrodes_file
+        self.subject = subject
+        self.freesurfer_dir = freesurfer_dir
         self._df = pd.read_table(electrodes_file,na_values='(null)')
         
-    def get_electrodes(self,session,exclude_null=True):
+    def _get_session_df(self, session, exclude_null=True):
         df2 = self._df.copy()
         df2 = df2[(df2.electrode_type=='EEG')&(df2.session_name==session)]
-        df2.dropna(axis=0,inplace=True)
+        if exclude_null:
+            df2.dropna(axis=0,inplace=True)
         return df2
+        
+    def get_name(self,session=None,exclude_null=True):
+        if session:
+            df = self._get_session_df(session,exclude_null)
+        else:
+            df = self._df
+        return df['electrode_name'].values
+        
+    def get_coord(self,session=None, exclude_null=True):
+        if session: 
+            df = self._get_session_df(session, exclude_null)
+        else:
+            df = self._df()
+        return df[['loc_x','loc_y','loc_z']].values
+    
+    def get_direction(self,session=None,exclude_null=True):
+        if session:
+            df = self._get_session_df(session,exclude_null)
+        else:
+            df = self._df
+            
+        return df[['m0n0','m0n1','m0n2','m1n0','m1n1','m1n2','m2n0','m2n1','m2n2']].values
+        
+    def to_freesurfer_coords(self,session=None):
 
+        if self.subject is None or self.freesurfer_dir is None:
+            raise('both subject and freesurfer_dir should be provided!')
+            
+        fscoords = FreesurferCoords(self.get_coord(session), subject=self.subject, freesurfer_dir=self.freesurfer_dir,
+                                                    name=self.get_name(session), direction=self.get_direction(session))
+        return fscoords    
+        
 
 
 
@@ -291,170 +341,92 @@ class BrainsightElectrodes(object):
 class BrainsightProject(object):
     
     """ main stimulation project class"""
-    def __init__(self, subject, project_dir, brainsight_file, freesurfer_dir = None, simnibs_dir = None,to_mni = False,
-     mni_template='MNI152_T1_2mm.nii.gz', mni_dir = os.path.join(os.environ['FSLDIR'],'data/standard'), overwrite=None):
+    def __init__(self, subject, brainsight_file, project_dir, anat_img=None, freesurfer_dir = None):
         
         self.subject = subject
-
-        self.simnibs_dir = simnibs_dir
-        if self.simnibs_dir is not None:
-            self.freesurfer_dir = self.simnibs_dir
-        else:
-            self.freesurfer_dir = freesurfer_dir
-            
         self.project_dir = project_dir  
-        self.brainsight_file = brainsight_file    
+        self.brainsight_file = brainsight_file
+        self.anat_img = anat_img
         self.subject_dir = os.path.join(self.project_dir,subject)
-        self._to_mni = to_mni
-        self._mni_template = mni_template
-        self._mni_dir = mni_dir 
-        self.overwrite = overwrite
-        self.directories = {}
+        self.freesurfer_dir = freesurfer_dir
         
+        ## initializing
+        self._parse_brainsight_file()
+         
+    def _parse_brainsight_file(self):
         
-        self._start_project()
-        
-    def _start_project(self):
-        
-        self._start_log()
-            
-        ## read brainsight file
-        self._read_brainsight_file()
-        
-        ## 
-        if self._to_mni:
-            self._to_mni(self.mni_template, self.mni_dir)
-                
-        ### create head models
-        self._make_head_model()    
-        
-    def _start_log(self):
-        
-        try:
-            previous_logs = open('{subject_dir}/logs/log.txt'.format(subject_dir = self.subject_dir),'r').read().split('\n')[0:-1]
-            
-            if self.overwrite is None:
-                self.log = previous_logs
-                
-            else:
-                if self.overwrite=='all':
-                    self.log = []
-                    f = open('{subject_dir}/logs/log.txt'.format(subject_dir = self.subject_dir),'w')
-                    f.close()
-                else:
-                    for x in self.overwrite:
-                        previous_logs.remove(x)
-                    f = open('{subject_dir}/logs/log.txt'.format(subject_dir = self.subject_dir),'w')
-                    for p in previous_logs:
-                        f.write(p+'\n')
-                    f.close()
-                    self.log = previous_logs    
-                    
-        except FileNotFoundError:
-            os.makedirs('{subject_dir}/logs'.format(subject_dir = self.subject_dir))
-            f = open('{subject_dir}/logs/log.txt'.format(subject_dir = self.subject_dir),'w')
-            f.close()
-            f.close()
-            self.log = []
-            
-                        
-    def _add_to_log(self,name):
-        
-        f = open('{subject_dir}/logs/log.txt'.format(subject_dir = self.subject_dir),'a')
-        f.write(name+'\n')
-        f.close()
-        self.log.append(name)
-        
-        
-    def _add_dir(self,name):
-        
-        try:
-           os.makedirs('{subject_dir}/{name}'.format(subject_dir=self.subject_dir,name=name))
-           
-        except:
-           shutil.rmtree('{subject_dir}/{name}'.format(subject_dir=self.subject_dir,name=name),ignore_errors=True)
-           os.makedirs('{subject_dir}/{name}'.format(subject_dir=self.subject_dir,name=name))
-        
-        self.directories[name] = '{subject_dir}/{name}'.format(subject_dir = self.subject_dir, name=name)
-            
-        
-    def _make_head_model(self):
-        
-        if 'make_head_model' not in self.log:
-            make_head_model(self.subject,self.freesurfer_dir)
-            self._add_to_log('make_head_model')
-        
-    def _to_mni(self,mni_template):
-        if 'to_mni' not in self.log:
-            self._add_dir('mni')
-            pass
-            ### TO DO
-            
-            self._add_to_log('to_mni')
-            
-    def _read_brainsight_file(self):
-        
-        if 'read_brainsight_file' not in self.log:
-            self._add_dir('brainsight')
-            self._add_to_log('read_brainsight_file')
+        if not os.path.exists(os.path.join(self.subject_dir,'brainsight')):
+            os.makedirs(os.path.join(self.subject_dir,'brainsight'))
             
         bs = BrainsightSessionFile(self.brainsight_file,out_dir='{subject_dir}/brainsight'.format(subject_dir=self.subject_dir))
         self.brainsight_samples = BrainsightSamples('{subject_dir}/brainsight/Sample.txt'.format(subject_dir=self.subject_dir))
-        self.brainsight_targets = BrainsightTargets('{subject_dir}/brainsight/Target.txt'.format(subject_dir=self.subject_dir), self.subject, self.freesurfer_dir)
+        self.brainsight_targets = BrainsightTargets('{subject_dir}/brainsight/Target.txt'.format(subject_dir=self.subject_dir), subject=self.subject,
+        anat_img = self.anat_img, freesurfer_dir=self.freesurfer_dir)
         
         if 'Electrode' in bs.tables_names:
-            self.brainsight_electrodes = BrainsightElectrodes('{subject_dir}/brainsight/Electrode.txt'.format(subject_dir=self.subject_dir))
+            self.brainsight_electrodes = BrainsightElectrodes('{subject_dir}/brainsight/Electrode.txt'.format(subject_dir=self.subject_dir),subject=self.subject,
+        freesurfer_dir=self.freesurfer_dir)
 
-
-    def summary(self,plot_pulses=False):
-       
-       if 'summary' not in self.log:
-            self._brainsight_summary(plot_pulses) 
-            self._add_to_log('summary')
-
-    def _brainsight_summary(self,plot_pulses):
-   
-       """ write summary of samples """
-
-       html = HtmlDoc('samples summary') 
-       logo = os.path.abspath('../docs/logo.png')
-       html.add_image(logo,200,800,'middle')
-       html.add_header('h1','Brainsight sessions summary')
-       html.add_header('h3','Number of session: %d'%len(self.brainsight_samples.sessions_names))
-
-       for session in self.brainsight_samples.sessions_names:
-   
-           html.add_header('h2',session)
-           targets = self.brainsight_samples.get_targets(session)
-           html.add_paragraph('<b>Targets:</b> '+', '.join(targets)+'<br><br>')
-   
-           stims_sequences = self.brainsight_samples.get_stims_sequence(session)
-           stims_sequences_sorted = sorted(stims_sequences)
+    def summary(self, plot_pulses=False, remove_outliers=True, overwrite=False, heightpx=200, widthpx=800):
         
-           for j,seq in enumerate(stims_sequences_sorted):
-               t = stims_sequences[seq]
-               
-               if plot_pulses:
-                   pulses_= self.brainsight_samples.get_samples(session).iloc[seq[0]:seq[1]]
-                   pulses_coords = pulses_[['loc_x','loc_y','loc_z']]
-                   avg_coord = np.mean(pulses_coords,axis=0)
-                   d = cdist(np.atleast_2d(avg_coord),pulses_coords)
-                   idx = d<=np.mean(d)+3*np.std(d)
-                   idx = idx.flatten()
-                   pulses_coords = pulses_coords[idx]
-                   pulses = FreesurferCoords(pulses_coords,self.subject,self.freesurfer_dir)
-                   prefix=session+'_'+t+'_'+str(j)
-                   plotting_points_fast(pulses, map_surface='pial', annot='aparc',show_average=True, out_dir = os.path.join(self.directories['brainsight'], 'images'), prefix=prefix)
-                   html.add_paragraph('&nbsp&nbsp&nbsp -> Target: '+ t + ' (start:' + str(seq[0])+ ', end:' + str(seq[1]) + ', stimulations:' + str(seq[1]-seq[0]+1)+')<br><br>')
-                   html.add_image('./images/'+prefix+'.png',200,900,'middle')
-                   html.add_paragraph('<br><br>')
-               
-               else:
-                   html.add_paragraph('&nbsp&nbsp&nbsp -> Target: '+ t + ' (start:' + str(seq[0])+ ', end:' + str(seq[1]) + ', stimulations:' + str(seq[1]-seq[0]+1)+')<br><br>')
-               
-   
-           html.write('{subject_dir}/brainsight/summary.html'.format(subject_dir=self.subject_dir))
+        """ write summary of samples """
+        if os.path.exists(os.path.join(self.subject_dir,'brainsight','summary.html'))==False or overwrite==True:
             
+            html = HtmlDoc('Brainsight sessions summary') 
+            html.add_header('h1','Brainsight sessions summary')
+            html.add_header('h3','Number of session: %d'%len(self.brainsight_samples.sessions_names))
+
+            for session in self.brainsight_samples.sessions_names:
+
+                html.add_header('h2',session)
+                session_targets = self.brainsight_samples.get_session_targets(session)
+                html.add_paragraph('<b>Targets:</b> '+', '.join(session_targets)+'<br><br>')
+
+                stims_sequences = self.brainsight_samples.get_stims_sequence(session)
+                stims_sequences_sorted = sorted(stims_sequences)
+
+                for j,seq in enumerate(stims_sequences_sorted):
+                   t = stims_sequences[seq]
+                   html.add_paragraph('&nbsp&nbsp&nbsp -> Target: '+ t + ' (start:' + str(seq[0])+ ', end:' + str(seq[1]) + ', stimulations:' + str(seq[1]-seq[0]+1)+')<br><br>')
+
+                   if plot_pulses:
+               
+                       if self.freesurfer_dir is None:
+                           raise('freesurfer_dir should be provided to plot pulses!')
+           
+                       ### create head models
+                       anat_img = os.path.join(self.freesurfer_dir,'mri','rawavg.mgz')
+                       out_dir = os.path.join(self.subject_dir,'head_model')
+                       make_head_model(anat_img,out_dir)
+               
+                       ## pulses
+                       pulses_= self.brainsight_samples.get_samples(session).iloc[seq[0]:seq[1]]
+                       pulses_coords = pulses_[['loc_x','loc_y','loc_z']].values  #pulses ras coords
+
+                       ## remove outlier pulses 
+                       if remove_outliers:
+                           avg_coord = np.mean(pulses_coords,axis=0)
+                           d = cdist(np.atleast_2d(avg_coord),pulses_coords)
+                           idx = d<=np.mean(d)+2*np.std(d)
+                           idx = idx.flatten()
+                           pulses_coords = pulses_coords[idx]
+
+                       ## plotting pulses   
+                       pulses = FreesurferCoords(pulses_coords, self.subject, self.freesurfer_dir)
+                       #
+                       prefix=session+'_'+t+'_'+str(j)
+                       img_out_dir = os.path.join(self.subject_dir,'brainsight', 'images')
+                       p = plotting_points_fast(pulses, show_average=True)
+                       img_path = p.save_image(out_dir = img_out_dir, prefix=prefix)
+                       html.add_image(img_path,heightpx,widthpx,'middle')
+                       html.add_paragraph('<br><br>')
+
+                       html.write('{subject_dir}/brainsight/summary.html'.format(subject_dir=self.subject_dir))
+        
+
+
+
+
+
+
     
-    
-     

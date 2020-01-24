@@ -2,8 +2,7 @@
 from nipype.interfaces.fsl import FLIRT
 from nipype import Workflow, Node
 import os
-from .targets import Targets
-from .coordinates import Coords
+from .coordinates import Coords,FreesurferCoords
 from simnibs import sim_struct, run_simulation
 from .surface import Surf
 from .utils import make_head_model
@@ -22,41 +21,46 @@ class Simnibs(object):
         
     def register_T1_to_simnibs(self):
         
-        flirt = Node(FLIRT(),name='flirt')
-        flirt.inputs.in_file = os.path.join(self.mri2mesh_dir,'m2m_'+self.subject,'T1fs.nii.gz')
-        flirt.inputs.reference = os.path.join(self.mri2mesh_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz')
-        flirt.inputs.out_file = 'T1_in_Simnibs.nii.gz'
-        flirt.inputs.out_matrix_file = 'T12Simnibs.mat'
-        flirt.inputs.searchr_x = [-180,180]
-        flirt.inputs.searchr_y = [-180,180]
-        flirt.inputs.searchr_z = [-180,180]
+        ### run flirt registartion if it has not been run before
+        if not os.path.exists(os.path.join(self.out_dir,'T1_to_simnibs_registration')):
+            
+            flirt = Node(FLIRT(),name='flirt')
+            flirt.inputs.in_file = os.path.join(self.mri2mesh_dir,'m2m_'+self.subject,'T1fs.nii.gz')
+            flirt.inputs.reference = os.path.join(self.mri2mesh_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz')
+            flirt.inputs.out_file = 'T1_in_Simnibs.nii.gz'
+            flirt.inputs.out_matrix_file = 'T12Simnibs.mat'
+            flirt.inputs.searchr_x = [-180,180]
+            flirt.inputs.searchr_y = [-180,180]
+            flirt.inputs.searchr_z = [-180,180]
     
-        wf = Workflow(name='T1_to_simnibs_registration',base_dir=self.out_dir)
-        wf.add_nodes([flirt])
-        wf.run()
+            wf = Workflow(name='T1_to_simnibs_registration',base_dir=self.out_dir)
+            wf.add_nodes([flirt])
+            wf.run()
+        
+        ## path to registration file    
+        t12simnibs_reg = os.path.join(self.out_dir,'T1_to_simnibs_registration','flirt','T12Simnibs.mat')
+        
+        return t12simnibs_reg
         
     def add_targets(self, targets, csv_fname, t12simnibs=False, project2skin=True, distance=4):
         
         ras_coords = targets.coordinates['ras_coord']
         
         if t12simnibs:
-            if not os.path.exists(os.path.join(self.out_dir,'T1_to_simnibs_registration')):
-                self.register_T1_to_simnibs()
-            
+                t12simnibs_reg = self.register_T1_to_simnibs()
                 
-            coordsObj = Coords(targets.coordinates['ras_coord'],os.path.join(self.mri2mesh_dir,'m2m_'+self.subject,'T1fs.nii.gz'))
-            t12simnibs_reg = os.path.join(self.out_dir,'T1_to_simnibs_registration','flirt','T12Simnibs.mat')
-            ras_coords = coordsObj.img2imgcoord(os.path.join(self.mri2mesh_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz'),t12simnibs_reg,type='xfm')
+            targets = targets.img2imgcoord(os.path.join(self.mri2mesh_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz'),t12simnibs_reg,type='xfm')
             
         if project2skin is True:
-            if not os.path.isfile('{subjects_dir}/{subject}/bem/outer_skin_surface'.format(subjects_dir=self.mri2mesh_dir,subject='fs_'+self.subject)):
-                make_head_model('fs_'+self.subject,self.mri2mesh_dir)
+            anat_img = os.path.join()
+            make_head_model('fs_'+self.subject,self.mri2mesh_dir)
                 
             skin_surf = Surf('{mri2mesh_dir}/{subject}/bem/outer_skin_surface'.format(mri2mesh_dir=self.mri2mesh_dir, subject='fs_'+self.subject))
-            mapped_vertices, ras_coords = skin_surf.project_coords(ras_coords)
+            mapped_vertices, mapped_coords_ras_tkr, mapped_coords_ras = targets.map_to_surface(skin_surface)
             
-        self.targets = Targets(ras_coords, 'fs_'+self.subject, self.mri2mesh_dir, direction = targets.direction)
+            targets = FreesurferCoords(mapped_coords_ras, 'fs_'+self.subject, subjects_dir = self.mri2mesh_dir, direction = targets.direction)
         
+        self.targets = targets
         self.csv_fname = csv_fname   
         self._targets_to_csv(csv_fname)
             
@@ -77,7 +81,6 @@ class Simnibs(object):
             f.write(','.join(row)+'\n')
         
         
-    
     def run_simnibs(self, sim_output_name,fnamecoil='MagVenture_MC_B70.ccd',didt=1e6, overwrite=False):
         
         s = sim_struct.SESSION()
@@ -95,6 +98,7 @@ class Simnibs(object):
         tms = s.add_tmslist()
         tms.fnamecoil = os.path.join(Simnibs.SIMNIBSDIR,'ccd-files',fnamecoil)
         tms.add_positions_from_csv(os.path.join(self.out_dir,'simnibs_targets',self.csv_fname))
+        
         for p in tms.pos:
             p.didt = didt
         

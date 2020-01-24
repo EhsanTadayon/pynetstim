@@ -9,28 +9,29 @@ import os
 from nipype.interfaces.fsl import WarpPoints
 import warnings
 from mne.label import grow_labels
-from nipype.interfaces.freesurfer import Label2Vol,Binarize,MRIsCalc
 from nipype import Node, Workflow
 from .surface import Surf, FreesurferSurf
 from .annotation import Annot
-
+from nipype.interfaces.fsl import FLIRT,FNIRT
+from .image_manipulation import img2img_register, mri_label2vol
 
 
 class Coords(object):
     
-    def __init__(self,coords, img_file, coord_type='ras', **traits):
+    def __init__(self,coords, img_file, subject=None, coord_type='ras', working_dir=None, **traits):
         """ coordinate class"""
         
         self.img_file = img_file
+        self.subject=subject
         self.coord_type = coord_type
         self.img = nib.load(img_file)
+        self.working_dir = working_dir
         self.vox2ras = self.img.affine
         self.ras2vox = np.linalg.inv(self.vox2ras)
         self.npoints = coords.shape[0]
         self.coordinates = {}
         self._affineM = np.hstack((coords, np.ones((coords.shape[0],1)))).T
         self._count=0
-        
         
         if coord_type=='ras':
             self.coordinates['ras_coord'] = coords
@@ -64,20 +65,27 @@ class Coords(object):
         self.__setattr__(trait,value)
         if trait not in self.traits_list:
             self.traits_list.append(trait)
-     
     
-    def img2imgcoord(self, dest_img, reg_file, type):
+    
+    def img2imgcoord(self, dest_img, wf_base_dir, wf_name, method='linear'):
         
-       
+        img2img_register(img_file = self.img_file, ref_file = dest_img, wf_base_dir = wf_base_dir, wf_name=wf_name, method=method,
+        flirt_out_reg_file = 'linear_reg.mat',flirt_out_file = 'img2img_linear.nii.gz',
+                    fnirt_out_file = 'img2img_nonlinear.nii.gz')
+        
+
+        
         np.savetxt('./temp_coords.txt',self.coordinates['ras_coord'])
         warppoints = WarpPoints()
         warppoints.inputs.in_coords = './temp_coords.txt'
         warppoints.inputs.src_file = self.img_file
         warppoints.inputs.dest_file = dest_img
         
-        if type=='xfm':
+        if method=='linear':
+            reg_file = os.path.join(wf_base_dir,wf_name, method, 'linear_reg.mat')
             warppoints.inputs.xfm_file = reg_file
-        elif type=='warp':
+            
+        elif method=='nonlinear':
             warppoints.inputs.warp_file = reg_file
         else:
             raise ValueError('type should be either xfm or warp')
@@ -85,13 +93,16 @@ class Coords(object):
         warppoints.inputs.coord_mm = True
         res = warppoints.run()
         res = np.loadtxt('./temp_coords_warped.txt')
-        res = res[0:res.shape[0]-1,:]
         
         ## removing the files
         os.remove('./temp_coords.txt')
         os.remove('./temp_coords_warped.txt')
         
-        return res
+        traits={}
+        for trait in self.traits_list:
+            traits[trait] = self.__getattribute__(trait)
+            
+        return Coords(res,dest_img,coord_type='ras',**traits)
         
     def __iter__(self):
         return self
@@ -141,8 +152,25 @@ class Coords(object):
             traits[trait] = self.__getattribute__(trait)[idx]
         
         return Coords(coords, self.img_file, coord_type='ras', **traits)
-    
         
+    def get_coords_df(self, coord_types='all', by=None, vals=None, to_df=True):
+    
+        if coord_types=='all':
+            coord_types = self.coordinates.keys()
+    
+        if by: 
+            targets = self.subset(by,vals)
+        else:
+            targets = self
+
+        results = []    
+        for coord_type in coord_types:
+            coords = targets.coordinates[coord_type]
+            coords_df = pd.DataFrame(coords,index=targets.name,columns=[coord_type+'_{axis}'.format(axis=a) for a in ['X','Y','Z']])
+            print(coords_df.head())
+            results.append(coords_df)
+        return pd.concat(results,axis=1)
+                
         
 class _Coord(object):
     def __init__(self, ras_coord, voxel_coord,**kwargs):
@@ -166,7 +194,7 @@ class MNICoords(Coords):
            
 class FreesurferCoords(Coords):
 
-    def __init__(self, coords, subject, subjects_dir, guess_hemi=True, **traits):
+    def __init__(self, coords, subject, freesurfer_dir, guess_hemi=True, working_dir=None, **traits):
 
         """
         This class implements methods to transform between coordinates in the Freesurfer space.
@@ -175,17 +203,18 @@ class FreesurferCoords(Coords):
         ==========
         coords: numpy array (n x 3). Coords are RAS coords defined in the native T1 space (rawavg). 
         subject: Freesurfer subject ID
-        subjects_dir: Freesurfer subjects_dir
+        freesurfer_dir: Freesurfer freesurfer_dir
         guess_hemi: uses Freesurfer processed volumes to guess which hemisphere each point belongs to. 
         **traits: dictionary containing other traits
         
         """
-        self.subjects_dir = subjects_dir
+        self.freesurfer_dir = freesurfer_dir
         self.subject = subject
+        self.working_dir = working_dir
         
         ## setting image file names
-        rawavg_file = '{subjects_dir}/{subject}/mri/rawavg.mgz'.format(subjects_dir=subjects_dir,subject=subject)            
-        orig_file = '{subjects_dir}/{subject}/mri/orig.mgz'.format(subjects_dir=subjects_dir,subject=subject)
+        rawavg_file = '{freesurfer_dir}/{subject}/mri/rawavg.mgz'.format(freesurfer_dir=freesurfer_dir,subject=subject)            
+        orig_file = '{freesurfer_dir}/{subject}/mri/orig.mgz'.format(freesurfer_dir=freesurfer_dir,subject=subject)
         
         ### loading 
         self.orig_img = nib.freesurfer.load(orig_file)
@@ -195,7 +224,7 @@ class FreesurferCoords(Coords):
         
         
         ### initiating Coords class. 
-        Coords.__init__(self, coords, rawavg_file, coord_type='ras', **traits)
+        Coords.__init__(self, coords, rawavg_file, subject=self.subject, coord_type='ras', working_dir=working_dir, **traits)
                 
         self.coordinates['ras_tkr_coord'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, self._affineM)).T[:,:3]
         self.coordinates['fsvoxel_coord'] = np.round(np.dot(self.ras2fsvox,self._affineM).T[:,:3])
@@ -242,7 +271,7 @@ class FreesurferCoords(Coords):
     def _read_talaraich_transformation(self):
         """ read talairach transformation from freesurfer talairach.xfm output"""
         
-        fname = '{subjects_dir}/{subject}/mri/transforms/talairach.xfm'.format(subjects_dir=self.subjects_dir,
+        fname = '{freesurfer_dir}/{subject}/mri/transforms/talairach.xfm'.format(freesurfer_dir=self.freesurfer_dir,
                                                                                subject=self.subject)
         f = open(fname,'r').read().split('\n')
         
@@ -293,8 +322,8 @@ class FreesurferCoords(Coords):
             raise ValueError('Use set_hemi_manually to assign hemiphere to these points: %s'%(','.join(self.hemi_not_determined)))
         
      
-        lh_annot = Annot('lh', annot, self.subject, self.subjects_dir)
-        rh_annot = Annot('rh', annot, self.subject, self.subjects_dir)
+        lh_annot = Annot('lh', annot, self.subject, self.freesurfer_dir)
+        rh_annot = Annot('rh', annot, self.subject, self.freesurfer_dir)
         
         colors = np.zeros((self.npoints,3))
         structures = np.empty(self.npoints,dtype='object')
@@ -329,32 +358,37 @@ class FreesurferCoords(Coords):
         if len(self.hemi_not_determined)>0:
             raise ValueError('Use set_hemi_manually to assign hemiphere to these points: %s'%(','.join(self.hemi_not_determined)))
         
-        lh_coords = self.coordinates['ras_tkr_coord'][self.hemi=='lh',:]
-        rh_coords = self.coordinates['ras_tkr_coord'][self.hemi=='rh',:]
+        lh_coords_ras_tkr = self.coordinates['ras_tkr_coord'][self.hemi=='lh',:]
+        rh_coords_ras_tkr = self.coordinates['ras_tkr_coord'][self.hemi=='rh',:]
         
         if surface in ['white','pial']:
-            lh_surf = FreesurferSurf('lh', surface,self.subject, self.subjects_dir)
-            rh_surf = FreesurferSurf('rh', surface, self.subject, self.subjects_dir)
-            lh_mapped_vertices,lh_mapped_coords = lh_surf.project_coords(lh_coords)
-            rh_mapped_vertices, rh_mapped_coords = rh_surf.project_coords(rh_coords)
+            lh_surf = FreesurferSurf('lh', surface,self.subject, self.freesurfer_dir)
+            rh_surf = FreesurferSurf('rh', surface, self.subject, self.freesurfer_dir)
+            lh_mapped_vertices,lh_mapped_coords_ras_tkr = lh_surf.project_coords(lh_coords_ras_tkr)
+            rh_mapped_vertices, rh_mapped_coords_ras_tkr = rh_surf.project_coords(rh_coords_ras_tkr)
             
         elif isinstance(surface,Surf):
-            lh_mapped_vertices, lh_mapped_coords = surface.project_coords(lh_coords)
-            rh_mapped_vertices, rh_mapped_coords = surface.project_coords(rh_coords)
+            lh_mapped_vertices, lh_mapped_coords_ras_tkr = surface.project_coords(lh_coords_ras_tkr)
+            rh_mapped_vertices, rh_mapped_coords_ras_tkr = surface.project_coords(rh_coords_ras_tkr)
         
         
         mapped_vertices = np.empty(self.npoints, dtype='int')
         mapped_vertices[self.hemi=='lh']= lh_mapped_vertices
         mapped_vertices[self.hemi=='rh'] = rh_mapped_vertices
         
-        mapped_coords = np.zeros((self.npoints,3))
-        mapped_coords[self.hemi=='lh',:] = lh_mapped_coords
-        mapped_coords[self.hemi=='rh',:] = rh_mapped_coords
+        mapped_coords_ras_tkr = np.zeros((self.npoints,3))
+        mapped_coords_ras_tkr[self.hemi=='lh',:] = lh_mapped_coords_ras_tkr
+        mapped_coords_ras_tkr[self.hemi=='rh',:] = rh_mapped_coords_ras_tkr
         
-        return mapped_vertices, mapped_coords
+
+        mapped_coords_ras_tkr_affineM = np.hstack((mapped_coords_ras_tkr,np.ones((mapped_coords_ras_tkr.shape[0],1))))
+        mapped_coords_ras = np.dot(np.linalg.inv(self.ras2ras_tkr),mapped_coords_ras_tkr_affineM.T).T
+        mapped_coords_ras = mapped_coords_ras[:,0:3]
+        
+        return mapped_vertices, mapped_coords_ras_tkr,mapped_coords_ras
 
         
-    def create_surf_roi(self, extents, surface='white', annot=None,label2vol=True, out_dir=None, ):
+    def create_surf_roi(self, extents, surface='white', map_surface='white', annot=None, label2vol=True, out_dir=se, tidy_up=True ):
         """ creates surface ROIs for each stimulation target
         
         Parameters
@@ -382,64 +416,62 @@ class FreesurferCoords(Coords):
         
         if len(self.hemi_not_determined)>0:
             raise ValueError('Use set_hemi_manually to assign hemiphere to these points: %s'%(','.join(self.hemi_not_determined)))
-        
-        mapped_vertices, mapped_coords = self.map_to_surface(surface)
-        
-        hemi = [0 if hemi=='lh' else 1 for hemi in self.hemi]
-        rois = grow_labels(self.subject, mapped_vertices, extents, hemi, self.subjects_dir)
-        
+            
+
+        mapped_vertices, mapped_coords_ras_tkr, mapped_coords_ras = self.map_to_surface(map_surface)
+             
         ### extents can be one number or an array, make it an array if it is a number
         try:
             len(extents)
         except:
             extents = [extents]*self.npoints
         
+        hemi = [0 if hemi=='lh' else 1 for hemi in self.hemi]
+        rois = grow_labels(self.subject, mapped_vertices, extents, hemi, self.freesurfer_dir, surface=surface)
+        
+       
         ### get structures and color for labels according to annotation
         if annot:
-            structures, colors = self.map_to_annot(annot, map_surface=surface)
+            structures, colors = self.map_to_annot(annot, map_surface=map_surface)
             for i in range(self.npoints):
                 rois[i].color = colors[i]
                 vertex = mapped_vertices[i]
                 rois[i].name = structures[i]+'_{r}mm_{surf}_{vertex}'.format(r=extents[i],surf=surface,vertex=vertex)
                 
+        elif hasattr(self,'name') or hasattr(self,'color'):
+            for i in range(self.npoints):
+                if hasattr(self,'name'):
+                    vertex = mapped_vertices[i]
+                    rois[i].name = self.name[i]+'_{r}mm_{surf}_{vertex}'.format(r=extents[i],surf=surface,vertex=vertex)
+                if hasattr(self,'color'):
+                    rois[i].color = self.color[i]
+
         else:
             for i in range(self.npoints):
-                rois[i].name = self.name[i]
+                vertex = mapped_vertices[i]
+                rois[i].name = 'coor_id_{i}_{r}mm_{surf}_{vertex}'.format(r=extents[i],surf=surface,vertex=vertex,i=i)
+            
 
-        
         #### saving ROI labels
-        rois_path = []
+
         if out_dir:
+            rois_path = []
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir)
         
             for i,roi in enumerate(rois):
-                os.environ['SUBJECTS_DIR'] = self.subjects_dir
+                os.environ['SUBJECTS_DIR'] = self.freesurfer_dir
                 
                 ### saving ROI label
-                roi_path = '{out_dir}/{roi_name}.label'.format(out_dir=out_dir,roi_name=roi.name)
+                roi_path = '{out_dir}/{roi_name}-{hemi}.label'.format(out_dir=out_dir,roi_name=roi.name,hemi=roi.hemi)
                 rois_path.append(roi_path)
                 roi.save(roi_path)
                 
                 if label2vol:
-                    ### save volume
-                    wf = Workflow(name=roi.name+'_vol', base_dir=out_dir)
-                
-                    label2vol = Node(Label2Vol(label_file=roi_path,
-                     template_file='{subjects_dir}/{subject}/mri/T1.mgz'.format(subjects_dir=self.subjects_dir, subject=self.subject),
-                     hemi=roi.hemi, proj=(u'frac',0,1,0.01), identity=True, subject_id=self.subject), name='label2vol')
-                        
-                    mask_dilate = Node(Binarize(dilate=1,erode=1,min=1),name='dilate_label_vol')
-                    mris_calc = Node(MRIsCalc(),name='mask_with_gm')
-                    mris_calc.inputs.in_file2='{subjects_dir}/{subject}/mri/{hemi}.ribbon.mgz'.format(subjects_dir=self.subjects_dir, subject=self.subject, hemi=roi.hemi)
-                    mris_calc.inputs.action='mul'
-                    mris_calc.inputs.out_file=roi.name+'.nii.gz'
-                    wf.connect([
-                                (label2vol,mask_dilate,[("vol_label_file","in_file")]),
-                                (mask_dilate,mris_calc,[('binary_file','in_file1')]),
-                                ])
-                    
-                    wf.run()
+                    wf_name = '{roi_name}-{hemi}'.format(roi_name=roi.name,hemi=roi.hemi)+'_vol'
+                    mri_label2vol(roi,subject=self.subject, freesurfer_dir=self.freesurfer_dir,
+                    wf_base_dir=out_dir, wf_name=wf_name, tidy_up=tidy_up)
+            
            
         ### converting list to arrays
         self.add_trait('roi', np.array(rois))
@@ -500,7 +532,7 @@ class FreesurferCoords(Coords):
         for trait in self.traits_list:
             traits[trait] = self.__getattribute__(trait)[idx]
         
-        return FreesurferCoords(coords, self.subject, self.subjects_dir, guess_hemi=True, **traits)
+        return FreesurferCoords(coords, self.subject, self.freesurfer_dir, guess_hemi=True, **traits)
 
         
 class _FreesurferCoord(object):

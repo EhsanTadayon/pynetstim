@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import copy
+from .utils import make_head_model
 
 
 class plotting_points(object):
@@ -18,11 +19,11 @@ class plotting_points(object):
     def __init__(self, points, hemi='both', surf='pial', map_surface=None, annot=None, map_to_annot=None, show_skin=True, show_roi=False,
         show_name=False, name_scale=1, name_color=(0,0,0), show_directions=False, background='white',
         show_average=False, opacity=1, scale_factor=.5,color=np.array([(1,0,0)]),
-        use_default=True,prefix=None):
+        use_default=True):
      
         self.points = copy.deepcopy(points)
         self.subject = points.subject
-        self.subjects_dir = points.subjects_dir
+        self.freesurfer_dir = points.freesurfer_dir
         self.hemi = hemi
         self.surf = surf
         self.background = background
@@ -39,7 +40,6 @@ class plotting_points(object):
         self.color=color
         self.scale_factor = scale_factor
         self.use_default = use_default
-        self.prefix=prefix
         self.name_scale = name_scale
         self.name_color = name_color
 
@@ -49,6 +49,7 @@ class plotting_points(object):
         
         
     def _set_config(self):
+    
         
         if not hasattr(self.points,'color'):
             if self.color.shape[0]==1:
@@ -69,7 +70,7 @@ class plotting_points(object):
     def _plot(self):
         
         ## plot
-        self.brain = Brain(hemi=self.hemi, surf=self.surf, subject_id=self.subject, subjects_dir=self.subjects_dir, background = self.background,offset=False)
+        self.brain = Brain(hemi=self.hemi, surf=self.surf, subject_id=self.subject, subjects_dir=self.freesurfer_dir, background = self.background,offset=False)
          
         if self.show_skin:
             self._show_skin()
@@ -94,8 +95,8 @@ class plotting_points(object):
             self.points.name, self.points.color = self.points.map_to_annot(self.map_to_annot) 
             
         if self.map_surface:
-            mapped_vertices, mapped_coords = self.points.map_to_surface(self.map_surface)
-            mapped_coords = mapped_coords
+            mapped_vertices, mapped_coords_ras_tkr, mapped_coords_ras = self.points.map_to_surface(self.map_surface)
+            mapped_coords = mapped_coords_ras_tkr
         
         for i in range(self.points.npoints):
             point = self.points[i]
@@ -125,7 +126,12 @@ class plotting_points(object):
                 
     def _show_skin(self):
         
-        skin_surf = Surf('{subjects_dir}/{subject}/bem/outer_skin_surface'.format(subjects_dir=self.subjects_dir, subject=self.subject))
+        ## create head model under freesurfer_dir/{subject}/bem (if none existing!)
+        anat_img = os.path.join(self.points.freesurfer_dir,self.points.subject,'mri','rawavg.mgz')
+        out_dir = os.path.join(self.points.freesurfer_dir,self.points.subject,'bem')
+        make_head_model(anat_img,out_dir)
+        
+        skin_surf = Surf('{freesurfer_dir}/{subject}/bem/outer_skin_surface'.format(freesurfer_dir=self.freesurfer_dir, subject=self.subject))
         mlab.triangular_mesh(skin_surf.vertices[:,0], skin_surf.vertices[:,1], skin_surf.vertices[:,2], skin_surf.faces, opacity=0.2, color=(1,1,0))
         
     def _show_annot(self):
@@ -142,13 +148,16 @@ class plotting_points(object):
         avg_coord = np.mean(self.points.coordinates['ras_tkr_coord'],axis=0)
         mlab.points3d(avg_coord[0],avg_coord[1], avg_coord[2], color=color, scale_factor=scale_factor)
         
-    def _save_image(self,views=['lat','med','dor','ros','caud'],filetype='jpg'):
-        if not os.path.exists(self.out_dir):
-            os.makedirs(self.out_dir)
-        prefix = self.out_dir+'/'+self.prefix
+    def save_image(self, out_dir, views=['lat','med','dor','ros','caud'], prefix='',  filetype='jpg'):
+        
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+            
+        prefix = out_dir+'/'+ prefix
         
         self.brain.save_imageset(prefix=prefix,views=views,filetype=filetype)
         mlab.close()
+        
         fig,ax = plt.subplots(1,len(views),figsize=(15,8))
         for i,view in enumerate(views):
             img_name = prefix+'_'+view+'.'+filetype
@@ -159,10 +168,14 @@ class plotting_points(object):
             
         fig.savefig(prefix+'.png',bbox_inches='tight',dpi=600)
         plt.close()
+        
+        ## return saved image path
+        return prefix+'.png'
 
 
 
 class plotting_points_fast(plotting_points):
+    
     
     def _add_points(self):
         
@@ -170,13 +183,13 @@ class plotting_points_fast(plotting_points):
             self.points.name, self.points.color = self.points.map_to_annot(self.map_to_annot) 
             
         if self.map_surface:
-            mapped_vertices, mapped_coords = self.points.map_to_surface(self.map_surface)
-            mapped_coords = mapped_coords
+            mapped_vertices, mapped_coords_ras_tkr, mapped_coords_ras = self.points.map_to_surface(self.map_surface)
+            mapped_coords = mapped_coords_ras_tkr
             mlab.points3d(mapped_coords[:,0],mapped_coords[:,1],mapped_coords[:,2],
-                      scale_factor = self.scale_factor*8,reset_zoom=False, color=self.color, opacity = self.opacity)
+                      scale_factor = self.scale_factor*8,reset_zoom=False, color=(1,0,0), opacity = self.opacity)
         else:
             mlab.points3d(self.points.coordinates['ras_tkr_coord'][:,0],self.points.coordinates['ras_tkr_coord'][:,1],self.points.coordinates['ras_tkr_coord'][:,2],
-                      scale_factor = self.scale_factor*8,reset_zoom=False, color=self.color, opacity = self.opacity)
+                      scale_factor = self.scale_factor*8,reset_zoom=False, color=(1,0,0), opacity = self.opacity)
             
         
     

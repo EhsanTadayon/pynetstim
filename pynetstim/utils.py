@@ -1,15 +1,18 @@
 ### Utils
 import os
 
-def make_head_model(subject, freesurfer_dir):
-    bem_folder = '{freesurfer_dir}/{subject}/bem'.format(freesurfer_dir=freesurfer_dir, subject=subject)
-    os.makedirs(bem_folder,exist_ok=True)
-    if not os.path.exists(os.path.join(bem_folder,'outer_skin_surface')):
-        cmd ='cd {freesurfer_dir}/{subject}/bem; mri_watershed -surf surf {freesurfer_dir}/{subject}/mri/rawavg.mgz brain.mgz'.format(freesurfer_dir=freesurfer_dir, subject = subject)
+def make_head_model(anat_img, out_dir):
+    
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+        
+    if not os.path.exists(os.path.join(out_dir,'outer_skin_surface')):
+        
+        cmd ='cd {out_dir}; mri_watershed -surf surf {anat_img} brain.mgz'.format(out_dir=out_dir, anat_img=anat_img)
         os.system(cmd)
 
         for f in ['lh.surf_brain_surface','lh.surf_inner_skull_surface','lh.surf_outer_skin_surface','lh.surf_outer_skull_surface']:
-            cmd = 'mv {freesurfer_dir}/{subject}/bem/{f} {freesurfer_dir}/{subject}/bem/{f2}'.format(f=f,f2=f.split('lh.surf_')[1],subject=subject, freesurfer_dir=freesurfer_dir)
+            cmd = 'mv {out_dir}/{f} {out_dir}/{f2}'.format(f=f,f2=f.split('lh.surf_')[1],out_dir=out_dir)
             os.system(cmd)
     else: 
         print('head model exists!')
