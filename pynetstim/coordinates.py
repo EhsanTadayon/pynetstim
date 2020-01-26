@@ -10,10 +10,10 @@ from nipype.interfaces.fsl import WarpPoints
 import warnings
 from mne.label import grow_labels
 from nipype import Node, Workflow
-from .surface import Surf, FreesurferSurf
-from .annotation import Annot
+from .freesurfer_files import Surf, FreesurferSurf, Annot
 from nipype.interfaces.fsl import FLIRT,FNIRT
 from .image_manipulation import img2img_register, mri_label2vol
+from scipy.spatial.distance import cdist
 
 
 class Coords(object):
@@ -65,6 +65,13 @@ class Coords(object):
         self.__setattr__(trait,value)
         if trait not in self.traits_list:
             self.traits_list.append(trait)
+            
+    def get_traits_dict(self):
+        
+        traits={}
+        for trait in self.traits_list:
+            traits[trait] = self.__getattribute__(trait)
+        return traits
     
     
     def img2imgcoord(self, dest_img, wf_base_dir, wf_name, method='linear'):
@@ -327,18 +334,19 @@ class FreesurferCoords(Coords):
         
         colors = np.zeros((self.npoints,3))
         structures = np.empty(self.npoints,dtype='object')
+            
+        mapped_vertices_indices = self.map_to_surface(surface=map_surface)['vertices']
+        lh_mapped_vertices_indices = mapped_vertices_indices[self.hemi=='lh']
+        rh_mapped_vertices_indices = mapped_vertices_indices[self.hemi=='rh']
         
         
-        lh_coords = self.coordinates['ras_tkr_coord'][self.hemi=='lh',:]
-        rh_coords = self.coordinates['ras_tkr_coord'][self.hemi=='rh',:]
-
         if np.sum(self.hemi=='lh')>0:
-            lh_colors, lh_structures = lh_annot.map_coords(lh_coords, map_surface = map_surface)
+            lh_colors, lh_structures = lh_annot.get_vertices_colors(lh_mapped_vertices_indices),lh_annot.get_vertices_names(lh_mapped_vertices_indices)
             colors[self.hemi=='lh',:] = lh_colors
             structures[self.hemi=='lh'] = ['lh_' + x.decode('UTF-8') for x in lh_structures]
 
         if np.sum(self.hemi=='rh')>0:
-            rh_colors, rh_structures = rh_annot.map_coords(rh_coords, map_surface = map_surface)
+            rh_colors, rh_structures = rh_annot.get_vertices_colors(rh_mapped_vertices_indices),rh_annot.get_vertices_names(rh_mapped_vertices_indices)
             colors[self.hemi=='rh',:] = rh_colors
             structures[self.hemi=='rh'] = ['rh_' + x.decode('UTF-8') for x in rh_structures]
         
@@ -364,17 +372,21 @@ class FreesurferCoords(Coords):
         if surface in ['white','pial']:
             lh_surf = FreesurferSurf('lh', surface,self.subject, self.freesurfer_dir)
             rh_surf = FreesurferSurf('rh', surface, self.subject, self.freesurfer_dir)
-            lh_mapped_vertices,lh_mapped_coords_ras_tkr = lh_surf.project_coords(lh_coords_ras_tkr)
-            rh_mapped_vertices, rh_mapped_coords_ras_tkr = rh_surf.project_coords(rh_coords_ras_tkr)
+            lh_indices = np.argmin(cdist(lh_surf.vertices, lh_coords_ras_tkr), axis=0)
+            rh_indices = np.argmin(cdist(rh_surf.vertices, rh_coords_ras_tkr), axis=0)
+            lh_mapped_coords_ras_tkr= lh_surf.vertices[lh_indices,:]
+            rh_mapped_coords_ras_tkr= rh_surf.vertices[rh_indices,:]
             
         elif isinstance(surface,Surf):
-            lh_mapped_vertices, lh_mapped_coords_ras_tkr = surface.project_coords(lh_coords_ras_tkr)
-            rh_mapped_vertices, rh_mapped_coords_ras_tkr = surface.project_coords(rh_coords_ras_tkr)
+            lh_indices = np.argmin(cdist(surf.vertices, lh_coords_ras_tkr), axis=0)
+            rh_indices = np.argmin(cdist(surf.vertices, rh_coords_ras_tkr), axis=0)
+            lh_mapped_coords_ras_tkr = lh_surf.vertices[lh_indices,:]
+            rh_mapped_coords_ras_tkr = rh_surf.vertices[rh_indices,:]
         
         
         mapped_vertices = np.empty(self.npoints, dtype='int')
-        mapped_vertices[self.hemi=='lh']= lh_mapped_vertices
-        mapped_vertices[self.hemi=='rh'] = rh_mapped_vertices
+        mapped_vertices[self.hemi=='lh']= lh_indices
+        mapped_vertices[self.hemi=='rh'] = rh_indices
         
         mapped_coords_ras_tkr = np.zeros((self.npoints,3))
         mapped_coords_ras_tkr[self.hemi=='lh',:] = lh_mapped_coords_ras_tkr
@@ -384,11 +396,12 @@ class FreesurferCoords(Coords):
         mapped_coords_ras_tkr_affineM = np.hstack((mapped_coords_ras_tkr,np.ones((mapped_coords_ras_tkr.shape[0],1))))
         mapped_coords_ras = np.dot(np.linalg.inv(self.ras2ras_tkr),mapped_coords_ras_tkr_affineM.T).T
         mapped_coords_ras = mapped_coords_ras[:,0:3]
+        results = {'vertices': mapped_vertices, 'ras_coord': mapped_coords_ras, 'ras_tkr_coord':mapped_coords_ras_tkr}
         
-        return mapped_vertices, mapped_coords_ras_tkr,mapped_coords_ras
+        return results
 
         
-    def create_surf_roi(self, extents, surface='white', map_surface='white', annot=None, label2vol=True, out_dir=se, tidy_up=True ):
+    def create_surf_roi(self, extents, surface='white', map_surface='white', annot=None, label2vol=True, out_dir=None, tidy_up=True ):
         """ creates surface ROIs for each stimulation target
         
         Parameters
