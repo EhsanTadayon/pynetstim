@@ -5,7 +5,7 @@ Author: Ehsan Tadayon, M.D. [sunny.tadayon@gmail.com / stadayon@bidmc.harvard.ed
 
 from surfer import Brain
 from mayavi import mlab
-from .surface import Surf,FreesurferSurf
+from .freesurfer_files import Surf, FreesurferSurf, Annot
 from nilearn.plotting import plot_anat
 import matplotlib.pyplot as plt
 import numpy as np
@@ -90,13 +90,20 @@ class plotting_points(object):
          
          
     def _add_points(self):
-        
-        if self.map_to_annot:
-            self.points.name, self.points.color = self.points.map_to_annot(self.map_to_annot) 
-            
+                    
         if self.map_surface:
-            mapped_vertices, mapped_coords_ras_tkr, mapped_coords_ras = self.points.map_to_surface(self.map_surface)
+            temp = self.points.map_to_surface(self.map_surface)
+            mapped_vertices, mapped_coords_ras_tkr = temp['vertices'], temp['ras_tkr_coord']
             mapped_coords = mapped_coords_ras_tkr
+        
+        ### FreesurferCoords.map_to_annot requires map_surface to be set ( set to white by default). Here, we use map_surface if it has been set, otherwise use 'white' by default. 
+        
+        if self.map_to_annot:            
+            if self.map_surface:
+                self.points.name, self.points.color = self.points.map_to_annot(self.map_to_annot, map_surface=self.map_surface)
+            else:
+                self.points.name, self.points.color = self.points.map_to_annot(self.map_to_annot, map_surface='white')
+                
         
         for i in range(self.points.npoints):
             point = self.points[i]
