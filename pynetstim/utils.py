@@ -3,6 +3,10 @@ import os
 
 def make_head_model(anat_img, out_dir):
     
+    """ create head models including skin and skull. 
+    
+    Note that rawavg.mgz should be specified ( not orig.mgz) to create head models for the purpose of visualizaiton"""
+    
     if not os.path.exists(out_dir):
         os.makedirs(out_dir)
         
