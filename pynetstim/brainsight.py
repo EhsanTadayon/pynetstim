@@ -396,7 +396,7 @@ class BrainsightProject(object):
            
                        ### create head models
                        anat_img = os.path.join(self.freesurfer_dir,'mri','rawavg.mgz')
-                       out_dir = os.path.join(self.subject_dir,'head_model')
+                       out_dir = os.path.join(self.freesurfer_dir,self.subject, 'bem')
                        make_head_model(anat_img,out_dir)
                
                        ## pulses
