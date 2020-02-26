@@ -74,28 +74,33 @@ class Coords(object):
         return traits
     
     
-    def img2imgcoord(self, dest_img, wf_base_dir, wf_name, method='linear'):
+    def img2imgcoord(self, dest_img, method='linear', wf_base_dir = os.path.abspath('.'), wf_name='register', reg_file=None):
         
-        img2img_register(img_file = self.img_file, ref_file = dest_img, wf_base_dir = wf_base_dir, wf_name=wf_name, method=method,
-        flirt_out_reg_file = 'linear_reg.mat',flirt_out_file = 'img2img_linear.nii.gz',
-                    fnirt_out_file = 'img2img_nonlinear.nii.gz')
-        
-
-        
+        if method not in ['linear','nonlinear']:
+            raise('method should be either linear or nonlinear')
+            
         np.savetxt('./temp_coords.txt',self.coordinates['ras_coord'])
         warppoints = WarpPoints()
         warppoints.inputs.in_coords = './temp_coords.txt'
         warppoints.inputs.src_file = self.img_file
         warppoints.inputs.dest_file = dest_img
         
-        if method=='linear':
-            reg_file = os.path.join(wf_base_dir,wf_name, method, 'linear_reg.mat')
-            warppoints.inputs.xfm_file = reg_file
+        if reg_file is None:
             
-        elif method=='nonlinear':
-            warppoints.inputs.warp_file = reg_file
+            img2img_register(img_file = self.img_file, ref_file = dest_img, wf_base_dir = wf_base_dir, wf_name=wf_name, method=method,
+        flirt_out_reg_file = 'linear_reg.mat',flirt_out_file = 'img2img_linear.nii.gz',
+                    fnirt_out_file = 'img2img_nonlinear.nii.gz')
+                    
+            if method=='linear':
+                warppoints.inputs.xfm_file =  os.path.join(wf_base_dir,wf_name, method, 'linear_reg.mat')
+            elif method=='nonlinear':
+                warppoints.inputs.warp_file = os.path.join(wf_base_dir,wf_name, method, '')
+                   
         else:
-            raise ValueError('type should be either xfm or warp')
+            if method=='linear':
+                warppoints.inputs.xfm_file =  reg_file
+            elif method=='nonlinear':
+                warppoints.inputs.warp_file = reg_file        
             
         warppoints.inputs.coord_mm = True
         res = warppoints.run()
@@ -105,11 +110,7 @@ class Coords(object):
         os.remove('./temp_coords.txt')
         os.remove('./temp_coords_warped.txt')
         
-        traits={}
-        for trait in self.traits_list:
-            traits[trait] = self.__getattribute__(trait)
-            
-        return Coords(res,dest_img,coord_type='ras',**traits)
+        return res
         
     def __iter__(self):
         return self
@@ -378,10 +379,10 @@ class FreesurferCoords(Coords):
             rh_mapped_coords_ras_tkr= rh_surf.vertices[rh_indices,:]
             
         elif isinstance(surface,Surf):
-            lh_indices = np.argmin(cdist(surf.vertices, lh_coords_ras_tkr), axis=0)
-            rh_indices = np.argmin(cdist(surf.vertices, rh_coords_ras_tkr), axis=0)
-            lh_mapped_coords_ras_tkr = lh_surf.vertices[lh_indices,:]
-            rh_mapped_coords_ras_tkr = rh_surf.vertices[rh_indices,:]
+            lh_indices = np.argmin(cdist(surface.vertices, lh_coords_ras_tkr), axis=0)
+            rh_indices = np.argmin(cdist(surface.vertices, rh_coords_ras_tkr), axis=0)
+            lh_mapped_coords_ras_tkr = surface.vertices[lh_indices,:]
+            rh_mapped_coords_ras_tkr = surface.vertices[rh_indices,:]
         
         
         mapped_vertices = np.empty(self.npoints, dtype='int')
@@ -548,6 +549,50 @@ class FreesurferCoords(Coords):
         return FreesurferCoords(coords, self.subject, self.freesurfer_dir, guess_hemi=True, **traits)
 
         
+
+
+
+class FSaverage(FreesurferCoords):
+    
+    def __init__(self, coords, subject, freesurfer_dir, guess_hemi=True, working_dir=None, **traits):
+
+        """
+        This class implements methods to transform between coordinates in the Freesurfer space.
+        
+        Parameters
+        ==========
+        coords: numpy array (n x 3). Coords are RAS coords defined in the native T1 space (rawavg). 
+        subject: Freesurfer subject ID
+        freesurfer_dir: Freesurfer freesurfer_dir
+        guess_hemi: uses Freesurfer processed volumes to guess which hemisphere each point belongs to. 
+        **traits: dictionary containing other traits
+        
+        """
+        self.freesurfer_dir = freesurfer_dir
+        self.subject = subject
+        self.working_dir = working_dir
+        
+        ## setting image file names           
+        orig_file = '{freesurfer_dir}/{subject}/mri/orig.mgz'.format(freesurfer_dir=freesurfer_dir,subject=self.subject)
+        
+        ### loading 
+        self.orig_img = nib.freesurfer.load(orig_file)
+        self.ras2fsvox = self.orig_img.header.get_ras2vox()
+        self.fsvox2ras_tkr = self.orig_img.header.get_vox2ras_tkr()
+        self.ras2ras_tkr = np.dot(self.fsvox2ras_tkr,self.ras2fsvox)
+        
+        
+        ### initiating Coords class. 
+        Coords.__init__(self, coords, orig_file, subject=self.subject, coord_type='ras', working_dir=working_dir, **traits)
+                
+        self.coordinates['ras_tkr_coord'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, self._affineM)).T[:,:3]
+        self.coordinates['fsvoxel_coord'] = np.round(np.dot(self.ras2fsvox,self._affineM).T[:,:3])
+        self.coordinates['talairach_coord'] = self.coordinates['ras_coord']
+        
+        ## guessing hemisphere
+        if guess_hemi:
+            self._guess_hemi()
+
 class _FreesurferCoord(object):
     def __init__(self,ras_coord, voxel_coord, ras_tkr_coord, fsvoxel_coord, talairach_coord, hemi, **kwargs):
         
