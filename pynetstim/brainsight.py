@@ -10,7 +10,7 @@ import os
 from .coordinates import Coords, FreesurferCoords
 from datetime import datetime
 import matplotlib.pyplot as plt
-from .surface import Surf, FreesurferSurf
+from .freesurfer_files import Surf, FreesurferSurf, Annot
 from nipype.interfaces.fsl import FLIRT,FNIRT
 from .plotting import plotting_points_fast,plotting_points
 from scipy.spatial.distance import cdist
