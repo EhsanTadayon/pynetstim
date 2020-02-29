@@ -292,6 +292,10 @@ class BrainsightElectrodes(object):
         self.subject = subject
         self.freesurfer_dir = freesurfer_dir
         self._df = pd.read_table(electrodes_file,na_values='(null)')
+        cols = ['electrode_name', 'electrode_type', 'session_name', 'loc_x', 'loc_y',
+         'loc_z', 'm0n0', 'm0n1', 'm0n2', 'm1n0', 'm1n1', 'm1n2', 'm2n0', 'm2n1', 'm2n2']
+        self._df = self._df[cols]
+      
         
     def _get_session_df(self, session, exclude_null=True):
         df2 = self._df.copy()
@@ -311,7 +315,7 @@ class BrainsightElectrodes(object):
         if session: 
             df = self._get_session_df(session, exclude_null)
         else:
-            df = self._df()
+            df = self._df
         return df[['loc_x','loc_y','loc_z']].values
     
     def get_direction(self,session=None,exclude_null=True):
