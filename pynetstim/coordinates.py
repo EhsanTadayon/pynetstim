@@ -14,6 +14,7 @@ from .freesurfer_files import Surf, FreesurferSurf, Annot
 from nipype.interfaces.fsl import FLIRT,FNIRT
 from .image_manipulation import img2img_register, mri_label2vol
 from scipy.spatial.distance import cdist
+import pandas as pd
 
 
 class Coords(object):
@@ -161,13 +162,13 @@ class Coords(object):
         
         return Coords(coords, self.img_file, coord_type='ras', **traits)
         
-    def get_coords_df(self, coord_types='all', by=None, vals=None, to_df=True):
+    def get_coords_df(self, coord_types='all', subset_by=None, subset_vals=None):
     
         if coord_types=='all':
             coord_types = self.coordinates.keys()
     
-        if by: 
-            targets = self.subset(by,vals)
+        if subset_by: 
+            targets = self.subset(subset_by,subset_vals)
         else:
             targets = self
 
@@ -175,7 +176,6 @@ class Coords(object):
         for coord_type in coord_types:
             coords = targets.coordinates[coord_type]
             coords_df = pd.DataFrame(coords,index=targets.name,columns=[coord_type+'_{axis}'.format(axis=a) for a in ['X','Y','Z']])
-            print(coords_df.head())
             results.append(coords_df)
         return pd.concat(results,axis=1)
                 
@@ -402,7 +402,7 @@ class FreesurferCoords(Coords):
         return results
 
         
-    def create_surf_roi(self, extents, surface='white', map_surface='white', annot=None, label2vol=True, out_dir=None, tidy_up=True ):
+    def create_surf_roi(self, extents, out_dir, surface='white', map_surface='white', annot=None, label2vol=True, label2vol_tidy_up=True):
         """ creates surface ROIs for each stimulation target
         
         Parameters
@@ -432,12 +432,13 @@ class FreesurferCoords(Coords):
             raise ValueError('Use set_hemi_manually to assign hemiphere to these points: %s'%(','.join(self.hemi_not_determined)))
             
 
-        mapped_vertices, mapped_coords_ras_tkr, mapped_coords_ras = self.map_to_surface(map_surface)
+        results = self.map_to_surface(map_surface)
+        mapped_vertices, mapped_coords_ras_tkr, mapped_coords_ras = results['vertices'], results['ras_coord'], results['ras_tkr_coord']
              
         ### extents can be one number or an array, make it an array if it is a number
-        try:
-            len(extents)
-        except:
+        if type(extents)==list or type(extents)==np.ndarray:
+            assert(len(extents)==self.npoints,'extents can be either one number or a list where len(extents) is equal to number of points')
+        else:
             extents = [extents]*self.npoints
         
         hemi = [0 if hemi=='lh' else 1 for hemi in self.hemi]
@@ -468,24 +469,24 @@ class FreesurferCoords(Coords):
 
         #### saving ROI labels
 
-        if out_dir:
-            rois_path = []
-            if not os.path.exists(out_dir):
-                os.makedirs(out_dir)
-        
-            for i,roi in enumerate(rois):
-                os.environ['SUBJECTS_DIR'] = self.freesurfer_dir
-                
-                ### saving ROI label
-                roi_path = '{out_dir}/{roi_name}-{hemi}.label'.format(out_dir=out_dir,roi_name=roi.name,hemi=roi.hemi)
-                rois_path.append(roi_path)
-                roi.save(roi_path)
-                
-                if label2vol:
-                    wf_name = '{roi_name}-{hemi}'.format(roi_name=roi.name,hemi=roi.hemi)+'_vol'
-                    mri_label2vol(roi,subject=self.subject, freesurfer_dir=self.freesurfer_dir,
-                    wf_base_dir=out_dir, wf_name=wf_name, tidy_up=tidy_up)
+
+        rois_path = []
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+    
+        for i,roi in enumerate(rois):
+            os.environ['SUBJECTS_DIR'] = self.freesurfer_dir
             
+            ### saving ROI label
+            roi_path = '{out_dir}/{roi_name}-{hemi}.label'.format(out_dir=out_dir,roi_name=roi.name,hemi=roi.hemi)
+            rois_path.append(roi_path)
+            roi.save(roi_path)
+            
+            if label2vol:
+                wf_name = '{roi_name}-{hemi}'.format(roi_name=roi.name,hemi=roi.hemi)+'_vol'
+                mri_label2vol(roi,subject=self.subject, freesurfer_dir=self.freesurfer_dir,
+                wf_base_dir=out_dir, wf_name=wf_name, tidy_up=label2vol_tidy_up)
+        
            
         ### converting list to arrays
         self.add_trait('roi', np.array(rois))
