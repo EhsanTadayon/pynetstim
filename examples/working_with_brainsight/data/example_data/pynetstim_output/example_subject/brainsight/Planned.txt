@@ -1,0 +1,7 @@
+planned_landmark_name	loc_x	loc_y	loc_z
+Bridge of nose	8.465	100.475	-28.488
+Left ear	-77.037	6.417	-17.540
+left eye brow	-31.225	103.199	-1.800
+Nasion	8.500	103.959	-17.429
+Right ear	78.162	-5.049	-23.875
+right eye brow	46.471	96.422	-3.667

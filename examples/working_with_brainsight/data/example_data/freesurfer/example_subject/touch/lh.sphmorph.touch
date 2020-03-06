@@ -1,0 +1,1 @@
+mris_sphere -rusage /net/rcss9/srv/export/ncf_pascual-leone_cnbs/share_root/lab/broad/baseline/subjects/Broad_82_YZ/touch/rusage.mris_sphere.lh.dat -seed 1234 ../surf/lh.inflated ../surf/lh.sphere

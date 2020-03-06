@@ -1,0 +1,12 @@
+------------------------------
+SUBJECT Broad_82_YZ
+DATE Thu Aug  2 15:49:37 EDT 2018
+USER stadayon
+HOST ncfc22.rc.fas.harvard.edu
+PROCESSOR x86_64
+OS Linux
+Linux ncfc22.rc.fas.harvard.edu 2.6.32-642.6.2.el6.x86_64 #1 SMP Wed Oct 26 06:52:09 UTC 2016 x86_64 x86_64 x86_64 GNU/Linux
+$Id: recon-all,v 1.580.2.16 2017/01/18 14:11:24 zkaufman Exp $
+/ncf/nrg/sw/apps/freesurfer/6.0.0/bin/recon-all
+PWD /net/rcss9/srv/export/ncf_pascual-leone_cnbs/share_root/lab/broad/baseline/subjects/Broad_82_YZ/label
+CMD mri_label2label --srcsubject fsaverage --srclabel /net/rcss9/srv/export/ncf_pascual-leone_cnbs/share_root/lab/broad/baseline/subjects/fsaverage/label/lh.BA1_exvivo.label --trgsubject Broad_82_YZ --trglabel ./lh.BA1_exvivo.label --hemi lh --regmethod surface

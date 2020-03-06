@@ -1,0 +1,1 @@
+mri_cc -aseg aseg.auto_noCCseg.mgz -o aseg.auto.mgz -lta /net/rcss9/srv/export/ncf_pascual-leone_cnbs/share_root/lab/broad/baseline/subjects/Broad_82_YZ/mri/transforms/cc_up.lta Broad_82_YZ

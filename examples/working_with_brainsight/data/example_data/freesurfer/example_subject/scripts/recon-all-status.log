@@ -1,0 +1,78 @@
+status file for recon-all
+Wed Aug  1 23:25:07 EDT 2018
+#@# MotionCor Wed Aug  1 23:25:16 EDT 2018
+#@# Talairach Wed Aug  1 23:25:31 EDT 2018
+#@# Talairach Failure Detection Wed Aug  1 23:28:49 EDT 2018
+#@# Nu Intensity Correction Wed Aug  1 23:28:50 EDT 2018
+#@# Intensity Normalization Wed Aug  1 23:32:02 EDT 2018
+#@# Skull Stripping Wed Aug  1 23:35:51 EDT 2018
+#@# EM Registration Thu Aug  2 00:03:54 EDT 2018
+#@# CA Normalize Thu Aug  2 00:30:45 EDT 2018
+#@# CA Reg Thu Aug  2 00:33:37 EDT 2018
+#@# SubCort Seg Thu Aug  2 04:51:30 EDT 2018
+#@# Merge ASeg Thu Aug  2 06:27:46 EDT 2018
+#@# Intensity Normalization2 Thu Aug  2 06:27:46 EDT 2018
+#@# Mask BFS Thu Aug  2 06:33:45 EDT 2018
+#@# WM Segmentation Thu Aug  2 06:33:48 EDT 2018
+#@# Fill Thu Aug  2 06:38:02 EDT 2018
+#@# Tessellate lh Thu Aug  2 06:39:14 EDT 2018
+#@# Tessellate rh Thu Aug  2 06:39:26 EDT 2018
+#@# Smooth1 lh Thu Aug  2 06:39:39 EDT 2018
+#@# Smooth1 rh Thu Aug  2 06:39:49 EDT 2018
+#@# Inflation1 lh Thu Aug  2 06:39:59 EDT 2018
+#@# Inflation1 rh Thu Aug  2 06:41:03 EDT 2018
+#@# QSphere lh Thu Aug  2 06:42:04 EDT 2018
+#@# QSphere rh Thu Aug  2 06:48:23 EDT 2018
+#@# Fix Topology Copy lh Thu Aug  2 06:54:31 EDT 2018
+#@# Fix Topology Copy rh Thu Aug  2 06:54:31 EDT 2018
+#@# Fix Topology lh Thu Aug  2 06:54:31 EDT 2018
+#@# Fix Topology rh Thu Aug  2 07:50:57 EDT 2018
+#@# Make White Surf lh Thu Aug  2 08:46:32 EDT 2018
+#@# Make White Surf rh Thu Aug  2 08:54:25 EDT 2018
+#@# Smooth2 lh Thu Aug  2 09:01:55 EDT 2018
+#@# Smooth2 rh Thu Aug  2 09:02:04 EDT 2018
+#@# Inflation2 lh Thu Aug  2 09:02:13 EDT 2018
+#@# Inflation2 rh Thu Aug  2 09:03:04 EDT 2018
+#@# Curv .H and .K lh Thu Aug  2 09:03:54 EDT 2018
+#@# Curv .H and .K rh Thu Aug  2 09:06:08 EDT 2018
+#@# Curvature Stats lh Thu Aug  2 09:08:18 EDT 2018
+#@# Curvature Stats rh Thu Aug  2 09:08:24 EDT 2018
+#@# Sphere lh Thu Aug  2 09:08:30 EDT 2018
+#@# Sphere rh Thu Aug  2 10:07:29 EDT 2018
+#@# Surf Reg lh Thu Aug  2 11:14:08 EDT 2018
+#@# Surf Reg rh Thu Aug  2 12:33:08 EDT 2018
+#@# Jacobian white lh Thu Aug  2 13:55:02 EDT 2018
+#@# Jacobian white rh Thu Aug  2 13:55:05 EDT 2018
+#@# AvgCurv lh Thu Aug  2 13:55:08 EDT 2018
+#@# AvgCurv rh Thu Aug  2 13:55:10 EDT 2018
+#@# Cortical Parc lh Thu Aug  2 13:55:13 EDT 2018
+#@# Cortical Parc rh Thu Aug  2 13:55:36 EDT 2018
+#@# Make Pial Surf lh Thu Aug  2 13:55:58 EDT 2018
+#@# Make Pial Surf rh Thu Aug  2 14:19:49 EDT 2018
+#@# Surf Volume lh Thu Aug  2 14:42:53 EDT 2018
+#@# Surf Volume rh Thu Aug  2 14:42:58 EDT 2018
+#@# Cortical ribbon mask Thu Aug  2 14:43:03 EDT 2018
+#@# Parcellation Stats lh Thu Aug  2 14:57:33 EDT 2018
+#@# Parcellation Stats rh Thu Aug  2 14:59:50 EDT 2018
+#@# Cortical Parc 2 lh Thu Aug  2 15:02:01 EDT 2018
+#@# Cortical Parc 2 rh Thu Aug  2 15:02:31 EDT 2018
+#@# Parcellation Stats 2 lh Thu Aug  2 15:03:01 EDT 2018
+#@# Parcellation Stats 2 rh Thu Aug  2 15:04:09 EDT 2018
+#@# Cortical Parc 3 lh Thu Aug  2 15:05:16 EDT 2018
+#@# Cortical Parc 3 rh Thu Aug  2 15:05:39 EDT 2018
+#@# Parcellation Stats 3 lh Thu Aug  2 15:06:03 EDT 2018
+#@# Parcellation Stats 3 rh Thu Aug  2 15:07:11 EDT 2018
+#@# WM/GM Contrast lh Thu Aug  2 15:08:15 EDT 2018
+#@# WM/GM Contrast rh Thu Aug  2 15:08:26 EDT 2018
+#@# Relabel Hypointensities Thu Aug  2 15:08:35 EDT 2018
+#@# AParc-to-ASeg aparc Thu Aug  2 15:09:12 EDT 2018
+#@# AParc-to-ASeg a2009s Thu Aug  2 15:16:32 EDT 2018
+#@# AParc-to-ASeg DKTatlas Thu Aug  2 15:23:52 EDT 2018
+#@# APas-to-ASeg Thu Aug  2 15:31:13 EDT 2018
+#@# ASeg Stats Thu Aug  2 15:31:22 EDT 2018
+#@# WMParc Thu Aug  2 15:35:32 EDT 2018
+#@# BA_exvivo Labels lh Thu Aug  2 15:49:37 EDT 2018
+Linux ncfc22.rc.fas.harvard.edu 2.6.32-642.6.2.el6.x86_64 #1 SMP Wed Oct 26 06:52:09 UTC 2016 x86_64 x86_64 x86_64 GNU/Linux
+
+recon-all -s Broad_82_YZ exited with ERRORS at Thu Aug  2 15:49:37 EDT 2018
+

@@ -1,0 +1,1 @@
+mris_register -curv -rusage /net/rcss9/srv/export/ncf_pascual-leone_cnbs/share_root/lab/broad/baseline/subjects/Broad_82_YZ/touch/rusage.mris_register.lh.dat ../surf/lh.sphere /ncf/nrg/sw/apps/freesurfer/6.0.0/average/lh.folding.atlas.acfb40.noaparc.i12.2016-08-02.tif ../surf/lh.sphere.reg

@@ -1,0 +1,9 @@
+Logfile for pctsurfcon
+Thu Aug  2 15:08:15 EDT 2018
+setenv SUBJECTS_DIR /net/rcss9/srv/export/ncf_pascual-leone_cnbs/share_root/lab/broad/baseline/subjects
+cd /net/rcss9/srv/export/ncf_pascual-leone_cnbs/share_root/lab/broad/baseline/subjects/Broad_82_YZ/scripts
+/ncf/nrg/sw/apps/freesurfer/6.0.0/bin/pctsurfcon
+$Id: pctsurfcon,v 1.15 2016/02/12 21:43:15 zkaufman Exp $
+Linux ncfc22.rc.fas.harvard.edu 2.6.32-642.6.2.el6.x86_64 #1 SMP Wed Oct 26 06:52:09 UTC 2016 x86_64 x86_64 x86_64 GNU/Linux
+FREESURFER_HOME /ncf/nrg/sw/apps/freesurfer/6.0.0
+Cleaning up
