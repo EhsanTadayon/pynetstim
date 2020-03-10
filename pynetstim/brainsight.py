@@ -97,13 +97,16 @@ class BrainsightSessionFile(object):
 
 class BrainsightTargets(object):
     
-    def __init__(self, targets_file, subject=None, anat_img=None, freesurfer_dir=None):
+    def __init__(self, subject, project_dir, anat_img=None, freesurfer_dir=None):
         
-        self.targets_file = targets_file 
+        self.project_dir = project_dir
         self.subject = subject
+        self.targets_file = os.path.join(project_dir,subject,'brainsight','Target.txt')
+        
         self.freesurfer_dir = freesurfer_dir
         self.anat_img = anat_img
-        self._df = pd.read_table(targets_file)
+        self._df = pd.read_table(self.targets_file)
+        self.working_dir = os.path.join(project_dir,subject)
         
             
     def get_coord(self):
@@ -119,20 +122,18 @@ class BrainsightTargets(object):
         return self._df.copy()
         
     def to_freesurfer_coords(self):
-        if self.subject is None or self.freesurfer_dir is None:
-            raise('both subject and freesurfer_dir should be provided!')
+        if self.freesurfer_dir is None:
+            raise('freesurfer_dir should be provided!')
         fscoords = FreesurferCoords(self.get_coord(), subject=self.subject, freesurfer_dir=self.freesurfer_dir,
-                                                    name=self.get_name(), direction=self.get_direction())
+                                                    name=self.get_name(), direction=self.get_direction(), working_dir=self.working_dir)
         return fscoords
         
     def to_coords(self):
-        coords = Coords(self.get_coord(), img_file=self.anat_img, subject=self.subject, name=self.get_name(), direction=self.get_direction())
+        coords = Coords(self.get_coord(), img_file=self.anat_img, subject=self.subject, name=self.get_name(), direction=self.get_direction(),working_dir=self.working_dir)
         return coords
          
     
         
-    
-
 
 ###################################################################################################    
 ##                                      BrainsightSamples
@@ -287,11 +288,18 @@ def plot_chunks(chunks,col='target_error',figsize=(8,6)):
 ###################################################################################################     
 class BrainsightElectrodes(object):
     
-    def __init__(self,electrodes_file, subject=None, freesurfer_dir=None):
-        self.electrodes_file = electrodes_file
+    def __init__(self,subject, project_dir, anat_img=None, freesurfer_dir=None):
+        
         self.subject = subject
+        self.project_dir = project_dir
+        self.electrodes_file = os.path.join(project_dir,subject,'brainsight','Electrode.txt')
+        
+        self.anat_img = anat_img
         self.freesurfer_dir = freesurfer_dir
-        self._df = pd.read_table(electrodes_file,na_values='(null)')
+        self.working_dir = os.path.join(project_dir,subject)
+        
+        
+        self._df = pd.read_table(self.electrodes_file,na_values='(null)')
         cols = ['electrode_name', 'electrode_type', 'session_name', 'loc_x', 'loc_y',
          'loc_z', 'm0n0', 'm0n1', 'm0n2', 'm1n0', 'm1n1', 'm1n2', 'm2n0', 'm2n1', 'm2n2']
         self._df = self._df[cols]
@@ -328,12 +336,16 @@ class BrainsightElectrodes(object):
         
     def to_freesurfer_coords(self,session=None):
 
-        if self.subject is None or self.freesurfer_dir is None:
+        if self.freesurfer_dir is None:
             raise('both subject and freesurfer_dir should be provided!')
             
         fscoords = FreesurferCoords(self.get_coord(session), subject=self.subject, freesurfer_dir=self.freesurfer_dir,
-                                                    name=self.get_name(session), direction=self.get_direction(session))
-        return fscoords    
+                                                    name=self.get_name(session), direction=self.get_direction(session), working_dir=self.working_dir)
+        return fscoords 
+        
+    def to_coords(self):
+        coords = Coords(self.get_coord(), img_file=self.anat_img, subject=self.subject, name=self.get_name(), direction=self.get_direction(),working_dir=self.working_dir)
+        return coords   
         
 
 
@@ -364,12 +376,10 @@ class BrainsightProject(object):
             
         bs = BrainsightSessionFile(self.brainsight_file,out_dir='{subject_dir}/brainsight'.format(subject_dir=self.subject_dir))
         self.brainsight_samples = BrainsightSamples('{subject_dir}/brainsight/Sample.txt'.format(subject_dir=self.subject_dir))
-        self.brainsight_targets = BrainsightTargets('{subject_dir}/brainsight/Target.txt'.format(subject_dir=self.subject_dir), subject=self.subject,
-        anat_img = self.anat_img, freesurfer_dir=self.freesurfer_dir)
+        self.brainsight_targets = BrainsightTargets(self.subject, self.project_dir, anat_img = self.anat_img, freesurfer_dir=self.freesurfer_dir)
         
         if 'Electrode' in bs.tables_names:
-            self.brainsight_electrodes = BrainsightElectrodes('{subject_dir}/brainsight/Electrode.txt'.format(subject_dir=self.subject_dir),subject=self.subject,
-        freesurfer_dir=self.freesurfer_dir)
+            self.brainsight_electrodes = BrainsightElectrodes(subject=self.subject, project_dir=self.project_dir, anat_img = self.anat_img, freesurfer_dir=self.freesurfer_dir)
 
     def summary(self, plot_pulses=False, remove_outliers=True, overwrite=False, heightpx=200, widthpx=800):
         
