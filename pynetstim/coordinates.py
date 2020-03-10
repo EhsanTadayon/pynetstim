@@ -6,15 +6,21 @@ Author: Ehsan Tadayon, M.D. [sunny.tadayon@gmail.com / stadayon@bidcm.harvard.ed
 import nibabel as nib
 import numpy as np
 import os
-from nipype.interfaces.fsl import WarpPoints
+import nipype.pipeline.engine as pe
+from nipype.interfaces.fsl import WarpPoints,  Reorient2Std
+from nipype.interfaces.freesurfer import MRIConvert,Label2Label
 import warnings
 from mne.label import grow_labels
 from nipype import Node, Workflow
 from .freesurfer_files import Surf, FreesurferSurf, Annot
 from nipype.interfaces.fsl import FLIRT,FNIRT
-from .image_manipulation import img2img_register, mri_label2vol
+from .image_manipulation import img2img_register, mri_label2vol, img2img_coord_register
 from scipy.spatial.distance import cdist
 import pandas as pd
+import shutil
+from nibabel.freesurfer import read_label
+from mne import Label
+
 
 
 class Coords(object):
@@ -37,6 +43,7 @@ class Coords(object):
         if coord_type=='ras':
             self.coordinates['ras_coord'] = coords
             self.coordinates['voxel_coord'] = np.round(np.dot(self.ras2vox,self._affineM).T[:,:3])
+        
         elif coord_type=='voxel':
             self.coordinates['voxel_coord'] = coords
             self.coordinates['ras_coord'] = np.dot(self.vox2ras,self._affineM).T[:,:3]
@@ -75,43 +82,14 @@ class Coords(object):
         return traits
     
     
-    def img2imgcoord(self, dest_img, method='linear', wf_base_dir = os.path.abspath('.'), wf_name='register', reg_file=None):
+    def img2imgcoord(self, dest_img, wf_base_dir, method='linear',
+                     input_reorient2std=False, ref_reorient2std=False, wf_name='register',
+                     linear_reg_file=None, warp_field_file = None):
         
-        if method not in ['linear','nonlinear']:
-            raise('method should be either linear or nonlinear')
-            
-        np.savetxt('./temp_coords.txt',self.coordinates['ras_coord'])
-        warppoints = WarpPoints()
-        warppoints.inputs.in_coords = './temp_coords.txt'
-        warppoints.inputs.src_file = self.img_file
-        warppoints.inputs.dest_file = dest_img
-        
-        if reg_file is None:
-            
-            img2img_register(img_file = self.img_file, ref_file = dest_img, wf_base_dir = wf_base_dir, wf_name=wf_name, method=method,
-        flirt_out_reg_file = 'linear_reg.mat',flirt_out_file = 'img2img_linear.nii.gz',
-                    fnirt_out_file = 'img2img_nonlinear.nii.gz')
-                    
-            if method=='linear':
-                warppoints.inputs.xfm_file =  os.path.join(wf_base_dir,wf_name, method, 'linear_reg.mat')
-            elif method=='nonlinear':
-                warppoints.inputs.warp_file = os.path.join(wf_base_dir,wf_name, method, '')
-                   
-        else:
-            if method=='linear':
-                warppoints.inputs.xfm_file =  reg_file
-            elif method=='nonlinear':
-                warppoints.inputs.warp_file = reg_file        
-            
-        warppoints.inputs.coord_mm = True
-        res = warppoints.run()
-        res = np.loadtxt('./temp_coords_warped.txt')
-        
-        ## removing the files
-        os.remove('./temp_coords.txt')
-        os.remove('./temp_coords_warped.txt')
-        
-        return res
+        img_file = self.img_file
+        ras_coords = self.coordinates['ras_coord']
+        return img2img_coord_register(ras_coords, img_file, dest_img, wf_base_dir, method=method, input_reorient2std=input_reorient2std, ref_reorient2std=ref_reorient2std,
+        wf_name=wf_name,linear_reg_file=linear_reg_file, warp_field_file = warp_field_file)
         
     def __iter__(self):
         return self
@@ -221,7 +199,7 @@ class FreesurferCoords(Coords):
         self.working_dir = working_dir
         
         ## setting image file names
-        rawavg_file = '{freesurfer_dir}/{subject}/mri/rawavg.mgz'.format(freesurfer_dir=freesurfer_dir,subject=subject)            
+        self.rawavg_file = '{freesurfer_dir}/{subject}/mri/rawavg.mgz'.format(freesurfer_dir=freesurfer_dir,subject=subject)            
         orig_file = '{freesurfer_dir}/{subject}/mri/orig.mgz'.format(freesurfer_dir=freesurfer_dir,subject=subject)
         
         ### loading 
@@ -232,7 +210,7 @@ class FreesurferCoords(Coords):
         
         
         ### initiating Coords class. 
-        Coords.__init__(self, coords, rawavg_file, subject=self.subject, coord_type='ras', working_dir=working_dir, **traits)
+        Coords.__init__(self, coords, self.rawavg_file, subject=self.subject, coord_type='ras', working_dir=working_dir, **traits)
                 
         self.coordinates['ras_tkr_coord'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, self._affineM)).T[:,:3]
         self.coordinates['fsvoxel_coord'] = np.round(np.dot(self.ras2fsvox,self._affineM).T[:,:3])
@@ -242,7 +220,12 @@ class FreesurferCoords(Coords):
         if guess_hemi:
             self._guess_hemi()
             
-           
+    def _reorient2std(self):
+        
+
+        return reorient.inputs.out_file
+                
+   
     def _guess_hemi(self):
         """
         uses Freesurfer voxel coordinate to guess hemisphere.
@@ -491,6 +474,69 @@ class FreesurferCoords(Coords):
         ### converting list to arrays
         self.add_trait('roi', np.array(rois))
         return self.roi,rois_path
+    
+    def img2imgcoord(self, dest_img, wf_base_dir, method='linear',
+                     input_reorient2std=True, ref_reorient2std=False, wf_name='register',
+                     linear_reg_file=None, warp_field_file = None):
+                     
+        ## converting rawavg to nifti
+        mc = MRIConvert()
+        mc.inputs.in_file = self.rawavg_file
+        mc.inputs.out_file = 'rawavg.nii.gz'
+        mc.inputs.out_type = 'niigz'
+        mc_node = pe.Node(mc,name='rawavg_to_nifti')
+        wf = pe.Workflow(name=wf_name,base_dir=wf_base_dir)
+        wf.add_nodes([mc_node])
+        wf.run()
+        
+        ras_coords = self.coordinates['ras_coord']
+        
+        return img2img_coord_register(ras_coords, os.path.join(wf_base_dir,wf_name,'rawavg_to_nifti','rawavg.nii.gz'), dest_img, wf_base_dir, method=method,
+         input_reorient2std=input_reorient2std, ref_reorient2std=ref_reorient2std,
+        wf_name=wf_name, linear_reg_file=linear_reg_file, warp_field_file = warp_field_file)
+        
+    
+    def img2imgcoord_by_surf(self, target_subject, wf_base_dir, source_surface = 'pial', source_map_surface='pial', target_surface='pial'):
+        
+        
+        rois,rois_paths = self.create_surf_roi(extents=2, out_dir= os.path.join(wf_base_dir,'creating_rois'), surface=source_surface, map_surface=source_map_surface, label2vol=False)
+        
+        wf = pe.Workflow(name='label2label',base_dir=wf_base_dir)
+        for i in range(self.npoints):
+            l2l = Label2Label()
+            l2l.inputs.hemisphere = self.hemi[i]
+            l2l.inputs.subject_id = target_subject
+            l2l.inputs.sphere_reg = os.path.join(self.freesurfer_dir, target_subject, 'surf', self.hemi[i]+'.'+'sphere.reg')
+            l2l.inputs.white = os.path.join(self.freesurfer_dir, target_subject, 'surf', self.hemi[i]+'.'+'white')
+            
+            l2l.inputs.source_subject = self.subject
+            l2l.inputs.source_label = rois_paths[i]
+            l2l.inputs.source_white = os.path.join(self.freesurfer_dir, self.subject, 'surf', self.hemi[i]+'.'+'white')
+            l2l.inputs.source_sphere_reg = os.path.join(self.freesurfer_dir, self.subject, 'surf', self.hemi[i]+'.'+'sphere.reg')
+            l2l.subjects_dir = self.freesurfer_dir
+            l2l_node = pe.Node(l2l,'label2label_{i}'.format(i=i))
+            wf.add_nodes([l2l_node])
+        try:
+            wf.run()
+        except RuntimeError:
+            pass
+      
+        for i in range(self.npoints):
+            out_label_file = os.path.join(self.freesurfer_dir, target_subject, 'label', os.path.basename(rois_paths[i]).split('.label')[0]+'_converted'+'.label')
+            shutil.move(out_label_file, os.path.join(wf_base_dir, 'label2label','label2label_{i}'.format(i=i)))
+         
+        new_coords = np.zeros((self.npoints,3))    
+        for i in range(self.npoints):
+            label_file = os.path.join(wf_base_dir, 'label2label','label2label_{i}'.format(i=i),os.path.basename(rois_paths[i]).split('.label')[0]+'_converted'+'.label')
+            label_vertices = read_label(label_file)
+            label_vertices.sort()
+            label = Label(label_vertices,hemi=self.hemi[i],subject=target_subject)
+            vertex = label.center_of_mass()
+            targ_surf = FreesurferSurf(hemi=label.hemi, surf=target_surface, subject = target_subject, subjects_dir=self.freesurfer_dir)
+            new_coords[i,:] = targ_surf.get_coords(vertex)
+        return new_coords
+            
+            
         
     def __iter__(self):
         return self
