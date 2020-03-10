@@ -1,0 +1,91 @@
+session_landmark_name	session_name	loc_x	loc_y	loc_z
+Bridge of nose	TMS_V1	3.985	95.515	-33.059
+Left ear	TMS_V1	-71.509	9.577	-19.594
+left eye brow	TMS_V1	-28.024	102.245	-2.249
+Nasion	TMS_V1	4.356	100.237	-14.607
+Right ear	TMS_V1	74.560	-0.879	-23.397
+right eye brow	TMS_V1	48.667	90.894	-5.538
+Refinement landmark 11	TMS_V1	11.127	107.583	35.205
+Refinement landmark 12	TMS_V1	4.145	49.707	101.081
+Refinement landmark 13	TMS_V1	2.481	-16.818	114.087
+Refinement landmark 14	TMS_V1	-2.728	-61.905	70.629
+Refinement landmark 15	TMS_V1	-52.713	76.629	37.709
+Refinement landmark 16	TMS_V1	-70.752	6.699	67.445
+Refinement landmark 17	TMS_V1	-32.936	-60.242	64.244
+Refinement landmark 18	TMS_V1	58.671	80.296	35.050
+Refinement landmark 19	TMS_V1	83.662	22.405	50.491
+Refinement landmark 20	TMS_V1	65.816	-36.056	57.813
+Refinement landmark 21	TMS_V1	44.057	-58.548	58.339
+Refinement landmark 22	TMS_V1	60.348	23.736	88.951
+Refinement landmark 23	TMS_V1	-32.406	30.445	103.935
+Refinement landmark 24	TMS_V1	-7.225	19.470	114.189
+Bridge of nose	TMS_V2	6.256	94.272	-32.913
+Left ear	TMS_V2	-72.043	3.919	-18.325
+left eye brow	TMS_V2	-19.000	103.090	-5.168
+Nasion	TMS_V2	7.726	94.439	-16.935
+Right ear	TMS_V2	72.949	-5.240	-26.301
+right eye brow	TMS_V2	39.056	97.596	-0.233
+Refinement landmark 29	TMS_V2	-14.805	89.842	71.367
+Refinement landmark 30	TMS_V2	-20.350	92.380	84.794
+Refinement landmark 31	TMS_V2	8.576	3.584	111.954
+Refinement landmark 32	TMS_V2	6.012	-74.485	57.215
+Refinement landmark 33	TMS_V2	12.835	95.183	51.539
+Refinement landmark 34	TMS_V2	76.063	23.841	65.263
+Refinement landmark 35	TMS_V2	45.793	-52.200	54.432
+Refinement landmark 36	TMS_V2	-58.810	54.953	53.353
+Refinement landmark 37	TMS_V2	-57.037	-31.904	71.484
+Refinement landmark 38	TMS_V2	-21.602	-59.453	69.562
+Bridge of nose	TMS_V3 	3.831	97.371	-31.340
+Left ear	TMS_V3 	-65.709	12.342	-18.758
+left eye brow	TMS_V3 	-18.620	103.116	-1.753
+Nasion	TMS_V3 	3.552	99.028	-14.530
+Right ear	TMS_V3 	71.264	-0.951	-22.491
+right eye brow	TMS_V3 	39.018	94.517	-3.927
+Bridge of nose	TMS_V4	4.299	99.069	-32.491
+Left ear	TMS_V4	-70.321	3.639	-18.965
+left eye brow	TMS_V4	-18.209	102.560	-1.831
+Nasion	TMS_V4	5.710	98.486	-14.451
+Right ear	TMS_V4	69.221	-7.210	-23.263
+right eye brow	TMS_V4	39.220	99.614	-1.201
+Refinement landmark 1	TMS_V4	18.606	89.063	61.907
+Refinement landmark 2	TMS_V4	15.923	-11.531	108.029
+Refinement landmark 3	TMS_V4	-9.755	-67.880	18.141
+Refinement landmark 4	TMS_V4	68.298	61.990	21.352
+Refinement landmark 5	TMS_V4	83.066	-2.608	16.766
+Refinement landmark 6	TMS_V4	35.537	-59.574	-8.612
+Refinement landmark 7	TMS_V4	-26.543	92.207	42.007
+Refinement landmark 8	TMS_V4	-80.817	15.531	39.255
+Refinement landmark 9	TMS_V4	-75.090	5.357	43.903
+Refinement landmark 10	TMS_V4	-45.967	-54.539	38.873
+Bridge of nose	TMS_V5	7.658	104.133	-36.124
+Left ear	TMS_V5	-71.716	8.906	-15.910
+left eye brow	TMS_V5	-19.679	102.034	-1.339
+Nasion	TMS_V5	7.797	101.333	-7.566
+Right ear	TMS_V5	74.507	-1.313	-21.474
+right eye brow	TMS_V5	36.686	95.412	-2.191
+Refinement landmark 36	TMS_V5	5.664	80.128	69.443
+Refinement landmark 37	TMS_V5	4.812	55.494	86.409
+Refinement landmark 38	TMS_V5	16.247	9.784	103.279
+Refinement landmark 39	TMS_V5	7.280	-60.057	78.776
+Refinement landmark 40	TMS_V5	7.406	-77.232	38.277
+Refinement landmark 41	TMS_V5	59.194	61.561	55.445
+Refinement landmark 42	TMS_V5	75.868	13.962	62.111
+Refinement landmark 43	TMS_V5	49.958	-62.642	32.071
+Refinement landmark 44	TMS_V5	-53.996	59.435	54.139
+Refinement landmark 45	TMS_V5	-69.500	-22.233	63.209
+Refinement landmark 46	TMS_V5	-51.488	-66.882	32.461
+Bridge of nose	TMS_V6	2.203	102.138	-38.470
+Left ear	TMS_V6	-63.313	12.998	-16.592
+left eye brow	TMS_V6	-16.311	98.577	-2.959
+Nasion	TMS_V6	4.212	100.304	-4.775
+Right ear	TMS_V6	70.643	-3.856	-21.188
+right eye brow	TMS_V6	36.261	93.448	-2.873
+Refinement landmark 1	TMS_V6	7.205	79.686	66.937
+Refinement landmark 2	TMS_V6	3.466	24.416	101.494
+Refinement landmark 3	TMS_V6	-3.561	-66.276	68.716
+Refinement landmark 4	TMS_V6	-56.372	55.986	56.728
+Refinement landmark 5	TMS_V6	-76.025	22.853	46.859
+Refinement landmark 6	TMS_V6	-51.203	-53.784	41.784
+Refinement landmark 7	TMS_V6	67.417	45.902	53.038
+Refinement landmark 8	TMS_V6	72.418	-24.758	50.565
+Refinement landmark 9	TMS_V6	43.423	-61.703	38.211

@@ -1,0 +1,2 @@
+flirt -in /Users/ehsantadayon/Dropbox/Projects/Broad/projects/pynetstim/examples/working_with_brainsight/registration/reorient2std/input_file/input_img_reorient2std.nii.gz -ref /usr/local/fsl/data/standard/MNI152_T1_2mm.nii.gz -out img2img_linear.nii.gz -omat linear_reg.mat
+

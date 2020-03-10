@@ -1,0 +1,2 @@
+mri_convert --out_type nii --input_volume /Users/ehsantadayon/Dropbox/Projects/Broad/projects/pynetstim/examples/working_with_brainsight/data/example_data/freesurfer/example_subject/mri/rawavg.mgz --output_volume rawavg.nii.gz
+

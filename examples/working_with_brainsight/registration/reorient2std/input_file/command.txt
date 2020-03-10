@@ -1,0 +1,2 @@
+fslreorient2std /Users/ehsantadayon/Dropbox/Projects/Broad/projects/pynetstim/examples/working_with_brainsight/registration/register/rawavg_to_nifti/rawavg.nii.gz input_img_reorient2std.nii.gz
+

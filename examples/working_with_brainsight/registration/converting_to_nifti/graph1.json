@@ -1,0 +1,21 @@
+{
+    "groups": [
+        {
+            "name": "Group_00001",
+            "procs": [
+                0
+            ],
+            "total": 1
+        }
+    ],
+    "links": [],
+    "maxN": 1,
+    "nodes": [
+        {
+            "group": 1,
+            "name": "0_input_file",
+            "report": "/input_file/_report/report.rst",
+            "result": "/input_file/result_input_file.pklz"
+        }
+    ]
+}
