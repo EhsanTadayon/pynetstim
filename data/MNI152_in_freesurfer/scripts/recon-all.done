@@ -1,0 +1,13 @@
+------------------------------
+SUBJECT MNI_FS2
+START_TIME Tue Feb 7 01:09:27 EST 2017
+END_TIME Tue Feb 7 16:41:43 EST 2017
+RUNTIME_HOURS 15.538
+USER stadayon
+HOST ncfc22.rc.fas.harvard.edu
+PROCESSOR x86_64
+OS Linux
+UNAME Linux ncfc22.rc.fas.harvard.edu 2.6.32-642.6.2.el6.x86_64 #1 SMP Wed Oct 26 06:52:09 UTC 2016 x86_64 x86_64 x86_64 GNU/Linux
+VERSION $Id: recon-all,v 1.578 2016/04/11 01:12:19 fischl Exp $
+CMDPATH /ncf/nrg/sw/apps/freesurfer/6_2015_04_21/bin/recon-all
+CMDARGS -subject MNI_FS2 -i /users/stadayon/Projects/Allen_Brain_Atlas/Data/MNI_reconall/MNI_Raw/MNI152_T1_2mm.nii.gz -all

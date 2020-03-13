@@ -1,0 +1,1 @@
+mri_aparc2aseg --s MNI_FS2 --volmask --aseg aseg.presurf.hypos --annot aparc.DKTatlas

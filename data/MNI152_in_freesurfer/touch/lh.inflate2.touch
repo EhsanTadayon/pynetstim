@@ -1,0 +1,1 @@
+mris_inflate -rusage /users/stadayon/Projects/Allen_Brain_Atlas/Data/MNI_reconall/MNI_FS2/touch/rusage.mris_inflate.lh.dat ../surf/lh.smoothwm ../surf/lh.inflated

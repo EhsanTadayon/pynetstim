@@ -1,0 +1,1 @@
+mris_ca_label -l ../label/lh.cortex.label -aseg ../mri/aseg.presurf.mgz -seed 1234 MNI_FS2 lh ../surf/lh.sphere.reg /ncf/nrg/sw/apps/freesurfer/6_2015_04_21/average/lh.DKTatlas.2016-03-20.gcs ../label/lh.aparc.DKTatlas.annot

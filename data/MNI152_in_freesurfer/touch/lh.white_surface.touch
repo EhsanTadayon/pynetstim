@@ -1,0 +1,1 @@
+mris_make_surfaces -aseg ../mri/aseg.presurf -noaparc -whiteonly -mgz -T1 brain.finalsurfs MNI_FS2 lh

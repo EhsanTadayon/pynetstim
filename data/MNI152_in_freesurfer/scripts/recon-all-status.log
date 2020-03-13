@@ -1,0 +1,77 @@
+status file for recon-all
+Tue Feb  7 01:09:29 EST 2017
+#@# MotionCor Tue Feb  7 01:09:31 EST 2017
+#@# Talairach Tue Feb  7 01:09:41 EST 2017
+#@# Talairach Failure Detection Tue Feb  7 01:13:24 EST 2017
+#@# Nu Intensity Correction Tue Feb  7 01:13:24 EST 2017
+#@# Intensity Normalization Tue Feb  7 01:17:00 EST 2017
+#@# Skull Stripping Tue Feb  7 01:23:49 EST 2017
+#@# EM Registration Tue Feb  7 02:06:00 EST 2017
+#@# CA Normalize Tue Feb  7 02:41:15 EST 2017
+#@# CA Reg Tue Feb  7 02:44:20 EST 2017
+#@# Remove Neck Tue Feb  7 05:22:48 EST 2017
+#@# SubCort Seg Tue Feb  7 05:24:40 EST 2017
+#@# Merge ASeg Tue Feb  7 07:06:47 EST 2017
+#@# Intensity Normalization2 Tue Feb  7 07:06:47 EST 2017
+#@# Mask BFS Tue Feb  7 07:13:24 EST 2017
+#@# WM Segmentation Tue Feb  7 07:13:28 EST 2017
+#@# Fill Tue Feb  7 07:18:36 EST 2017
+#@# Tessellate lh Tue Feb  7 07:19:52 EST 2017
+#@# Tessellate rh Tue Feb  7 07:20:06 EST 2017
+#@# Smooth1 lh Tue Feb  7 07:20:19 EST 2017
+#@# Smooth1 rh Tue Feb  7 07:20:30 EST 2017
+#@# Inflation1 lh Tue Feb  7 07:20:41 EST 2017
+#@# Inflation1 rh Tue Feb  7 07:21:39 EST 2017
+#@# QSphere lh Tue Feb  7 07:22:37 EST 2017
+#@# QSphere rh Tue Feb  7 07:28:33 EST 2017
+#@# Fix Topology Copy lh Tue Feb  7 07:34:26 EST 2017
+#@# Fix Topology Copy rh Tue Feb  7 07:34:26 EST 2017
+#@# Fix Topology lh Tue Feb  7 07:34:27 EST 2017
+#@# Fix Topology rh Tue Feb  7 08:21:57 EST 2017
+#@# Make White Surf lh Tue Feb  7 09:12:26 EST 2017
+#@# Make White Surf rh Tue Feb  7 09:20:21 EST 2017
+#@# Smooth2 lh Tue Feb  7 09:28:19 EST 2017
+#@# Smooth2 rh Tue Feb  7 09:28:30 EST 2017
+#@# Inflation2 lh Tue Feb  7 09:28:41 EST 2017
+#@# Inflation2 rh Tue Feb  7 09:29:37 EST 2017
+#@# Curv .H and .K lh Tue Feb  7 09:30:32 EST 2017
+#@# Curv .H and .K rh Tue Feb  7 09:33:05 EST 2017
+#@# Curvature Stats lh Tue Feb  7 09:35:38 EST 2017
+#@# Curvature Stats rh Tue Feb  7 09:35:45 EST 2017
+#@# Sphere lh Tue Feb  7 09:35:53 EST 2017
+#@# Sphere rh Tue Feb  7 10:50:27 EST 2017
+#@# Surf Reg lh Tue Feb  7 12:19:16 EST 2017
+#@# Surf Reg rh Tue Feb  7 13:37:24 EST 2017
+#@# Jacobian white lh Tue Feb  7 15:07:28 EST 2017
+#@# Jacobian white rh Tue Feb  7 15:07:31 EST 2017
+#@# AvgCurv lh Tue Feb  7 15:07:34 EST 2017
+#@# AvgCurv rh Tue Feb  7 15:07:37 EST 2017
+#@# Cortical Parc lh Tue Feb  7 15:07:40 EST 2017
+#@# Cortical Parc rh Tue Feb  7 15:08:04 EST 2017
+#@# Make Pial Surf lh Tue Feb  7 15:08:29 EST 2017
+#@# Make Pial Surf rh Tue Feb  7 15:23:15 EST 2017
+#@# Surf Volume lh Tue Feb  7 15:38:02 EST 2017
+#@# Surf Volume rh Tue Feb  7 15:38:07 EST 2017
+#@# Cortical ribbon mask Tue Feb  7 15:38:13 EST 2017
+#@# Parcellation Stats lh Tue Feb  7 15:47:43 EST 2017
+#@# Parcellation Stats rh Tue Feb  7 15:50:01 EST 2017
+#@# Cortical Parc 2 lh Tue Feb  7 15:52:19 EST 2017
+#@# Cortical Parc 2 rh Tue Feb  7 15:52:51 EST 2017
+#@# Parcellation Stats 2 lh Tue Feb  7 15:53:24 EST 2017
+#@# Parcellation Stats 2 rh Tue Feb  7 15:54:34 EST 2017
+#@# Cortical Parc 3 lh Tue Feb  7 15:55:44 EST 2017
+#@# Cortical Parc 3 rh Tue Feb  7 15:56:12 EST 2017
+#@# Parcellation Stats 3 lh Tue Feb  7 15:56:38 EST 2017
+#@# Parcellation Stats 3 rh Tue Feb  7 15:57:47 EST 2017
+#@# WM/GM Contrast lh Tue Feb  7 15:58:56 EST 2017
+#@# WM/GM Contrast rh Tue Feb  7 15:59:04 EST 2017
+#@# Relabel Hypointensities Tue Feb  7 15:59:13 EST 2017
+#@# AParc-to-ASeg aparc Tue Feb  7 15:59:59 EST 2017
+#@# AParc-to-ASeg a2009s Tue Feb  7 16:02:03 EST 2017
+#@# AParc-to-ASeg DKTatlas Tue Feb  7 16:04:08 EST 2017
+#@# APas-to-ASeg Tue Feb  7 16:06:13 EST 2017
+#@# ASeg Stats Tue Feb  7 16:06:23 EST 2017
+#@# WMParc Tue Feb  7 16:11:14 EST 2017
+#@# BA_exvivo Labels lh Tue Feb  7 16:26:42 EST 2017
+#@# BA_exvivo Labels rh Tue Feb  7 16:34:13 EST 2017
+recon-all -s MNI_FS2 finished without error at Tue Feb  7 16:41:44 EST 2017

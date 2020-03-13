@@ -1,0 +1,1 @@
+mri_cc -aseg aseg.auto_noCCseg.mgz -o aseg.auto.mgz -lta /users/stadayon/Projects/Allen_Brain_Atlas/Data/MNI_reconall/MNI_FS2/mri/transforms/cc_up.lta MNI_FS2

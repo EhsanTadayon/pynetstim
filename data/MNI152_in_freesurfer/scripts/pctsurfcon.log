@@ -1,0 +1,9 @@
+Logfile for pctsurfcon
+Tue Feb  7 15:59:04 EST 2017
+setenv SUBJECTS_DIR /users/stadayon/Projects/Allen_Brain_Atlas/Data/MNI_reconall
+cd /users/stadayon/Projects/Allen_Brain_Atlas/Data/MNI_reconall/MNI_FS2/scripts
+/ncf/nrg/sw/apps/freesurfer/6_2015_04_21/bin/pctsurfcon
+$Id: pctsurfcon,v 1.15 2016/02/12 21:43:15 zkaufman Exp $
+Linux ncfc22.rc.fas.harvard.edu 2.6.32-642.6.2.el6.x86_64 #1 SMP Wed Oct 26 06:52:09 UTC 2016 x86_64 x86_64 x86_64 GNU/Linux
+FREESURFER_HOME /ncf/nrg/sw/apps/freesurfer/6_2015_04_21
+Cleaning up

@@ -1,0 +1,1 @@
+mris_make_surfaces -orig_white white -orig_pial white -aseg ../mri/aseg.presurf -nowhite -mgz -T1 brain.finalsurfs MNI_FS2 rh

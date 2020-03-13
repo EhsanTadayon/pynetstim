@@ -1,0 +1,1 @@
+mri_convert /users/stadayon/Projects/Allen_Brain_Atlas/Data/MNI_reconall/MNI_FS2/mri/rawavg.mgz /users/stadayon/Projects/Allen_Brain_Atlas/Data/MNI_reconall/MNI_FS2/mri/orig.mgz --conform

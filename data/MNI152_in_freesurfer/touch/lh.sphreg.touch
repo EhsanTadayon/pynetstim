@@ -1,0 +1,1 @@
+mris_register -curv -rusage /users/stadayon/Projects/Allen_Brain_Atlas/Data/MNI_reconall/MNI_FS2/touch/rusage.mris_register.lh.dat ../surf/lh.sphere /ncf/nrg/sw/apps/freesurfer/6_2015_04_21/average/lh.curvature.buckner40.2016-03-20.tif ../surf/lh.sphere.reg

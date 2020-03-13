@@ -1,0 +1,1 @@
+mris_sphere -rusage /users/stadayon/Projects/Allen_Brain_Atlas/Data/MNI_reconall/MNI_FS2/touch/rusage.mris_sphere.rh.dat -seed 1234 ../surf/rh.inflated ../surf/rh.sphere

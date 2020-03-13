@@ -1,0 +1,1 @@
+mri_watershed -rusage /users/stadayon/Projects/Allen_Brain_Atlas/Data/MNI_reconall/MNI_FS2/touch/rusage.mri_watershed.dat -T1 -brain_atlas /ncf/nrg/sw/apps/freesurfer/6_2015_04_21/average/RB_all_withskull_2016-03-21.gca transforms/talairach_with_skull.lta T1.mgz brainmask.auto.mgz

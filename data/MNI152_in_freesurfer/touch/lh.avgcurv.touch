@@ -1,0 +1,1 @@
+mrisp_paint -a 5 /ncf/nrg/sw/apps/freesurfer/6_2015_04_21/average/lh.curvature.buckner40.2016-03-20.tif#6 ../surf/lh.sphere.reg ../surf/lh.avg_curv

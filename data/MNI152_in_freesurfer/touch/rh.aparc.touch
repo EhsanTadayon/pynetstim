@@ -1,0 +1,1 @@
+mris_ca_label -l ../label/rh.cortex.label -aseg ../mri/aseg.presurf.mgz -seed 1234 MNI_FS2 rh ../surf/rh.sphere.reg /ncf/nrg/sw/apps/freesurfer/6_2015_04_21/average/rh.DKatlas.2016-03-20.gcs ../label/rh.aparc.annot
