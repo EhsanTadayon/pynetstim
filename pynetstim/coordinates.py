@@ -105,7 +105,7 @@ class Coords(object):
             for trait in self.traits_list:
                 traits[trait] = self.__getattribute__(trait)
             
-            new_coords = Coords(coords=ras_coords, img_file=dest_img, subject=dest_name,**traits)
+            new_coords = Coords(coords=new_coords, img_file=dest_img, subject=dest_name,**traits)
             return new_coords
         
         else:
@@ -531,7 +531,7 @@ class FreesurferCoords(Coords):
             for trait in self.traits_list:
                 traits[trait] = self.__getattribute__(trait)
                 
-            new_coords = Coords(coords=ras_coords, img_file=dest_img, subject=dest_name,**traits)
+            new_coords = Coords(coords=new_coords, img_file=dest_img, subject=dest_name,**traits)
         
         return new_coords
     
