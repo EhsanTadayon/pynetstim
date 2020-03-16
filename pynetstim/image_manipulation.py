@@ -124,6 +124,7 @@ def img2img_coord_register(ras_coords, img_file, dest_img, wf_base_dir, method='
         warppoints.inputs.coord_mm = True
         res = warppoints.run()
         res = np.loadtxt('./temp_coords_warped.txt')
+        res = np.atleast_2d(res)
         
         ## removing the files
         os.remove('./temp_coords.txt')
