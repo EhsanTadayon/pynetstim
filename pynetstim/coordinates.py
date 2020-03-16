@@ -20,6 +20,7 @@ import pandas as pd
 import shutil
 from nibabel.freesurfer import read_label
 from mne import Label
+from collections import defaultdict
 
 
 
@@ -39,6 +40,7 @@ class Coords(object):
         self.coordinates = {}
         self._affineM = np.hstack((coords, np.ones((coords.shape[0],1)))).T
         self._count=0
+        coords = np.atleast_2d(coords)
         
         if coord_type=='ras':
             self.coordinates['ras_coord'] = coords
@@ -51,8 +53,6 @@ class Coords(object):
         else:
             raise ValueError('type should be either "ras" or "voxel"')
             
-        
-        
         self.traits_list = []
         for trait in traits:
             self.add_trait(trait,traits[trait])     
@@ -84,12 +84,24 @@ class Coords(object):
     
     def img2imgcoord(self, dest_img, wf_base_dir, method='linear',
                      input_reorient2std=False, ref_reorient2std=False, wf_name='register',
-                     linear_reg_file=None, warp_field_file = None):
+                     linear_reg_file=None, warp_field_file = None, return_as_array=False):
         
         img_file = self.img_file
         ras_coords = self.coordinates['ras_coord']
-        return img2img_coord_register(ras_coords, img_file, dest_img, wf_base_dir, method=method, input_reorient2std=input_reorient2std, ref_reorient2std=ref_reorient2std,
+        new_coords = img2img_coord_register(ras_coords, img_file, dest_img, wf_base_dir, method=method, input_reorient2std=input_reorient2std, ref_reorient2std=ref_reorient2std,
         wf_name=wf_name,linear_reg_file=linear_reg_file, warp_field_file = warp_field_file)
+        
+        if return_as_array is False:
+            traits={}
+            for trait in self.traits_list:
+                traits[trait] = self.__getattribute__(trait)[idx]
+            
+            new_coords = Coords(coords=ras_coords, img_file=dest_img, subject=dest_name,**traits)
+            return new_coords
+        
+        else:
+            return new_coords
+        
         
     def __iter__(self):
         return self
@@ -153,7 +165,11 @@ class Coords(object):
         results = []    
         for coord_type in coord_types:
             coords = targets.coordinates[coord_type]
-            coords_df = pd.DataFrame(coords,index=targets.name,columns=[coord_type+'_{axis}'.format(axis=a) for a in ['X','Y','Z']])
+            if hasattr(self,'name'):
+                coords_df = pd.DataFrame(coords,index=targets.name,columns=[coord_type+'_{axis}'.format(axis=a) for a in ['X','Y','Z']])
+            else:
+                coords_df = pd.DataFrame(coords,index=['coordinate_{i}'.format(i=i) for i in np.arange(self.npoints)], columns=[coord_type+'_{axis}'.format(axis=a) for a in ['X','Y','Z']])
+            
             results.append(coords_df)
         return pd.concat(results,axis=1)
                 
@@ -220,11 +236,7 @@ class FreesurferCoords(Coords):
         if guess_hemi:
             self._guess_hemi()
             
-    def _reorient2std(self):
-        
 
-        return reorient.inputs.out_file
-                
    
     def _guess_hemi(self):
         """
@@ -475,10 +487,14 @@ class FreesurferCoords(Coords):
         self.add_trait('roi', np.array(rois))
         return self.roi,rois_path
     
-    def img2imgcoord(self, dest_img, wf_base_dir, method='linear',
+    def img2imgcoord(self, dest_img, wf_base_dir=self.working_dir, method='linear', dest_name=None,
                      input_reorient2std=True, ref_reorient2std=False, wf_name='register',
-                     linear_reg_file=None, warp_field_file = None):
+                     linear_reg_file=None, warp_field_file = None, return_as_array=False):
                      
+        if wf_base_dir is None:
+            print('Working dir has not been specified, results will be stored in:  ', os.path.abspath('.'))             
+            wf_base_dir = os.path.abspath('.')
+                 
         ## converting rawavg to nifti
         mc = MRIConvert()
         mc.inputs.in_file = self.rawavg_file
@@ -491,13 +507,26 @@ class FreesurferCoords(Coords):
         
         ras_coords = self.coordinates['ras_coord']
         
-        return img2img_coord_register(ras_coords, os.path.join(wf_base_dir,wf_name,'rawavg_to_nifti','rawavg.nii.gz'), dest_img, wf_base_dir, method=method,
-         input_reorient2std=input_reorient2std, ref_reorient2std=ref_reorient2std,
-        wf_name=wf_name, linear_reg_file=linear_reg_file, warp_field_file = warp_field_file)
+        new_coords = img2img_coord_register(ras_coords, os.path.join(wf_base_dir,wf_name,'rawavg_to_nifti','rawavg.nii.gz'), dest_img, wf_base_dir, method=method,
+                                            input_reorient2std=input_reorient2std, ref_reorient2std=ref_reorient2std,
+                                            wf_name=wf_name, linear_reg_file=linear_reg_file, warp_field_file = warp_field_file)
         
+        if return_as_array is False:
+            
+            ## traits
+            traits={}
+            for trait in self.traits_list:
+                traits[trait] = self.__getattribute__(trait)[idx]
+                
+            new_coords = Coords(coords=ras_coords, img_file=dest_img, subject=dest_name,**traits)
+        
+        return new_coords
     
-    def img2imgcoord_by_surf(self, target_subject, wf_base_dir, source_surface = 'pial', source_map_surface='pial', target_surface='pial'):
+    def img2imgcoord_by_surf(self, target_subject, wf_base_dir=self.working_dir, source_surface = 'pial', source_map_surface='pial', target_surface='pial'):
         
+        if wf_base_dir is None:
+            print('Working dir has not been specified, results will be stored in:  ', os.path.abspath('.'))             
+            wf_base_dir = os.path.abspath('.')
         
         rois,rois_paths = self.create_surf_roi(extents=2, out_dir= os.path.join(wf_base_dir,'creating_rois'), surface=source_surface, map_surface=source_map_surface, label2vol=False)
         
