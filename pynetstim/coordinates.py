@@ -103,7 +103,7 @@ class Coords(object):
         if return_as_array is False:
             traits={}
             for trait in self.traits_list:
-                traits[trait] = self.__getattribute__(trait)[idx]
+                traits[trait] = self.__getattribute__(trait)
             
             new_coords = Coords(coords=ras_coords, img_file=dest_img, subject=dest_name,**traits)
             return new_coords
@@ -529,7 +529,7 @@ class FreesurferCoords(Coords):
             ## traits
             traits={}
             for trait in self.traits_list:
-                traits[trait] = self.__getattribute__(trait)[idx]
+                traits[trait] = self.__getattribute__(trait)
                 
             new_coords = Coords(coords=ras_coords, img_file=dest_img, subject=dest_name,**traits)
         
