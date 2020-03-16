@@ -82,10 +82,19 @@ class Coords(object):
         return traits
     
     
-    def img2imgcoord(self, dest_img, wf_base_dir, method='linear',
-                     input_reorient2std=False, ref_reorient2std=False, wf_name='register',
+    def img2imgcoord(self, dest_img, dest_name=None, method='linear',
+                     input_reorient2std=False, ref_reorient2std=False,
+                     wf_base_dir=None, wf_name='register',
                      linear_reg_file=None, warp_field_file = None, return_as_array=False):
         
+        if wf_base_dir is None and self.working_dir is not None:
+            wf_base_dir = self.working_dir
+            
+        elif wf_base_dir is None and self.working_dir is None:
+            print('Working dir has not been specified, results will be stored in:  ', os.path.abspath('.'))             
+            wf_base_dir = os.path.abspath('.')
+            
+                
         img_file = self.img_file
         ras_coords = self.coordinates['ras_coord']
         new_coords = img2img_coord_register(ras_coords, img_file, dest_img, wf_base_dir, method=method, input_reorient2std=input_reorient2std, ref_reorient2std=ref_reorient2std,
@@ -487,11 +496,15 @@ class FreesurferCoords(Coords):
         self.add_trait('roi', np.array(rois))
         return self.roi,rois_path
     
-    def img2imgcoord(self, dest_img, wf_base_dir=self.working_dir, method='linear', dest_name=None,
-                     input_reorient2std=True, ref_reorient2std=False, wf_name='register',
+    def img2imgcoord(self, dest_img, dest_name=None, method='linear',
+                     input_reorient2std=True, ref_reorient2std=False,
+                     wf_base_dir = None, wf_name='register',
                      linear_reg_file=None, warp_field_file = None, return_as_array=False):
                      
-        if wf_base_dir is None:
+        if wf_base_dir is None and self.working_dir is not None:
+            wf_base_dir = self.working_dir
+            
+        elif wf_base_dir is None and self.working_dir is None:
             print('Working dir has not been specified, results will be stored in:  ', os.path.abspath('.'))             
             wf_base_dir = os.path.abspath('.')
                  
