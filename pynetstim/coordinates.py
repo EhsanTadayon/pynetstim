@@ -24,10 +24,29 @@ from collections import defaultdict
 
 
 
+
+
+
+
+#############################################################################################################################
+#                                                          Coords class 
+#############################################################################################################################
 class Coords(object):
     
     def __init__(self,coords, img_file, subject=None, coord_type='ras', working_dir=None, **traits):
-        """ coordinate class"""
+        """ coordinate class
+        
+        Parameters
+        ===============
+        
+        coords: numpy array of shape: npoints x 3; 
+        img_file: volume file where the coordinates come from
+        subject: name of subject
+        coord_type: either "ras" or "voxel"
+        working_dir: the path to working_dir, where the results will be written to
+        **traits: other traits of the coordinates; the traits size should be equal to the number of npoints
+    
+        """
         
         self.img_file = img_file
         self.subject=subject
@@ -61,6 +80,16 @@ class Coords(object):
             
     def add_trait(self,trait,value):
         
+        """
+        adds trait; 
+        
+        Parameters:
+        ===========
+        trait: trait name for instance "color" or "name" or "opacity" etc.
+        value: value of the trait; the size of value should be equal to the number of npoints
+        
+        """
+        
         if type(value)!=np.ndarray:
             try:
                 value = np.atleast_1d(value)
@@ -76,17 +105,74 @@ class Coords(object):
             
     def get_traits_dict(self):
         
+        """
+        return a dictionary of all the traits for the coordinates
+        """
         traits={}
         for trait in self.traits_list:
             traits[trait] = self.__getattribute__(trait)
         return traits
+        
+        
+    def get_coords_df(self, coord_types='all', subset_by=None, subset_vals=None):
+        
+        """
+        returns a dataframe for the different coordinates of the points ( ras coords, voxel_coords,.. )
+        """
+        if coord_types=='all':
+            coord_types = self.coordinates.keys()
+    
+        if subset_by: 
+            targets = self.subset(subset_by,subset_vals)
+        else:
+            targets = self
+
+        results = []    
+        for coord_type in coord_types:
+            coords = targets.coordinates[coord_type]
+            if hasattr(self,'name'):
+                coords_df = pd.DataFrame(coords,index=targets.name,columns=[coord_type+'_{axis}'.format(axis=a) for a in ['X','Y','Z']])
+            else:
+                coords_df = pd.DataFrame(coords,index=['coordinate_{i}'.format(i=i) for i in np.arange(self.npoints)], columns=[coord_type+'_{axis}'.format(axis=a) for a in ['X','Y','Z']])
+            
+            results.append(coords_df)
+            
+        return pd.concat(results,axis=1)        
     
     
-    def img2imgcoord(self, dest_img, dest_name=None, method='linear',
-                     input_reorient2std=False, ref_reorient2std=False,
-                     wf_base_dir=None, wf_name='register',
+    def img2imgcoord(self, ref_img, ref_name=None, method='linear', input_reorient2std=False, ref_reorient2std=False, wf_base_dir=None, wf_name='register',
                      linear_reg_file=None, warp_field_file = None, return_as_array=False):
         
+        """
+        registers the coordinates to another volume. 
+        
+        Parameters:
+        ======================                         
+        
+        1. ref_img: destinateion volume
+                     
+        2. ref_name: name of the reference subject
+        
+        3. method: 'linear or nonlinear'
+        
+        4. input_reorient2std: reorient the input image to standard orientation using fslreorient2std
+
+        5. ref_reorient2std: reorient the reference image to standard orientation using fslreorient2std
+        
+        6. wf_base_dir: the base directory where the results will be stored; if not specified, it will look for working_dir of Coords class; 
+           if not found, it will use the currect directory as the base directory
+        
+        7. wf_name: name of the working process; the results will be saved under <wf_base_dir>/<wf_name>
+        
+        8. linear_reg_file:  registeration file if exists
+        
+        9. warp_field_file: nonlinear warp field if exits
+                     
+        10. return_as_array: if True, returns the new coordinates in a numpy ndarray; otherwise, it will return an instance of Coords using ref_img as the image volume
+        
+        """
+                     
+        ### wf_base_dir              
         if wf_base_dir is None and self.working_dir is not None:
             wf_base_dir = self.working_dir
             
@@ -97,7 +183,7 @@ class Coords(object):
                 
         img_file = self.img_file
         ras_coords = self.coordinates['ras_coord']
-        new_coords = img2img_coord_register(ras_coords, img_file, dest_img, wf_base_dir, method=method, input_reorient2std=input_reorient2std, ref_reorient2std=ref_reorient2std,
+        new_coords = img2img_coord_register(ras_coords, img_file, ref_img, wf_base_dir, method=method, input_reorient2std=input_reorient2std, ref_reorient2std=ref_reorient2std,
         wf_name=wf_name,linear_reg_file=linear_reg_file, warp_field_file = warp_field_file)
         
         if return_as_array is False:
@@ -105,11 +191,41 @@ class Coords(object):
             for trait in self.traits_list:
                 traits[trait] = self.__getattribute__(trait)[idx]
             
-            new_coords = Coords(coords=ras_coords, img_file=dest_img, subject=dest_name,**traits)
+            new_coords = Coords(coords=ras_coords, img_file=ref_img, subject=ref_name,**traits)
             return new_coords
         
         else:
             return new_coords
+            
+   
+    def subset(self,by,vals):
+        
+        """
+        subsets the coordinates
+        
+        Parameters:
+        =============
+        
+        1. by (string): which trait to use for subseting the coordinates; for instance you can use "name" to subset the coordinates
+        
+        2. vals (list): what values to use; for instance you can provide a list of the names
+        
+        """
+        
+        idx = []
+        for val in vals:
+            x = np.where(self.__getattribute__(by)==val)[0][0]
+            idx.append(x)
+            
+        idx = np.array(idx)
+                
+        coords =  self.coordinates['ras_coord'][idx,:]
+        
+        traits={}
+        for trait in self.traits_list:
+            traits[trait] = self.__getattribute__(trait)[idx]
+        
+        return Coords(coords, self.img_file, coord_type='ras', **traits)
         
         
     def __iter__(self):
@@ -143,48 +259,10 @@ class Coords(object):
         voxel_coord = self.coordinates['voxel_coord'][idx,:]
         c = _Coord(ras_coord,voxel_coord,**kwargs)
         return c
-        
-    def subset(self,by,vals):
-        
-        idx = []
-        for val in vals:
-            x = np.where(self.__getattribute__(by)==val)[0][0]
-            idx.append(x)
-            
-        idx = np.array(idx)
-                
-        coords =  self.coordinates['ras_coord'][idx,:]
-        
-        traits={}
-        for trait in self.traits_list:
-            traits[trait] = self.__getattribute__(trait)[idx]
-        
-        return Coords(coords, self.img_file, coord_type='ras', **traits)
-        
-    def get_coords_df(self, coord_types='all', subset_by=None, subset_vals=None):
-    
-        if coord_types=='all':
-            coord_types = self.coordinates.keys()
-    
-        if subset_by: 
-            targets = self.subset(subset_by,subset_vals)
-        else:
-            targets = self
-
-        results = []    
-        for coord_type in coord_types:
-            coords = targets.coordinates[coord_type]
-            if hasattr(self,'name'):
-                coords_df = pd.DataFrame(coords,index=targets.name,columns=[coord_type+'_{axis}'.format(axis=a) for a in ['X','Y','Z']])
-            else:
-                coords_df = pd.DataFrame(coords,index=['coordinate_{i}'.format(i=i) for i in np.arange(self.npoints)], columns=[coord_type+'_{axis}'.format(axis=a) for a in ['X','Y','Z']])
-            
-            results.append(coords_df)
-        return pd.concat(results,axis=1)
-                
-        
+                  
+                  
 class _Coord(object):
-    def __init__(self, ras_coord, voxel_coord,**kwargs):
+    def __init__(self, ras_coord, voxel_coord, **kwargs):
         self.ras_coord = ras_coord
         self.voxel_coord = voxel_coord
         self.traits_list = []
@@ -192,17 +270,18 @@ class _Coord(object):
             self.__setattr__(trait,value)
             self.traits_list.append(trait)
         
-    
-    
+        
 class MNICoords(Coords):
     
-    def __init__(self,coords,mni_template='MNI152_T1_2mm.nii.gz',mni_directory=os.environ['FSLDIR']):
+    def __init__(self,coords, mni_template='MNI152_T1_2mm.nii.gz',mni_directory=os.environ['FSLDIR']):
         
         mni_file = os.path.join(mni_directory,mni_tmeplate)
         Coords.__init__(self,coords,mni_file)
         
             
-           
+#############################################################################################################################
+#                                                          FreesurferCoords class 
+#############################################################################################################################           
 class FreesurferCoords(Coords):
 
     def __init__(self, coords, subject, freesurfer_dir, guess_hemi=True, working_dir=None, **traits):
@@ -212,11 +291,17 @@ class FreesurferCoords(Coords):
         
         Parameters
         ==========
-        coords: numpy array (n x 3). Coords are RAS coords defined in the native T1 space (rawavg). 
-        subject: Freesurfer subject ID
-        freesurfer_dir: Freesurfer freesurfer_dir
-        guess_hemi: uses Freesurfer processed volumes to guess which hemisphere each point belongs to. 
-        **traits: dictionary containing other traits
+        1. coords: numpy array (n x 3). Coords are RAS coords defined in the native T1 space (rawavg). 
+        
+        2. subject: Freesurfer subject ID
+        
+        3. freesurfer_dir: Freesurfer freesurfer_dir
+        
+        4 .guess_hemi: uses Freesurfer processed volumes to guess which hemisphere each point belongs to. 
+        
+        5. working_dir : the directory where the results will be written to.
+        
+        6. **traits: dictionary containing other traits
         
         """
         self.freesurfer_dir = freesurfer_dir
@@ -406,7 +491,7 @@ class FreesurferCoords(Coords):
         return results
 
         
-    def create_surf_roi(self, extents, out_dir, surface='white', map_surface='white', annot=None, label2vol=True, label2vol_tidy_up=True):
+    def create_surf_roi(self, extents, surface='white', map_surface='white', annot=None, wf_base_dir=None, wf_name='creating_surf_roi', label2vol=False, label2vol_tidy_up=True):
         """ creates surface ROIs for each stimulation target
         
         Parameters
@@ -473,16 +558,16 @@ class FreesurferCoords(Coords):
 
         #### saving ROI labels
 
-
         rois_path = []
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir)
+        if not os.path.exists(wf_base_dir):
+            os.makedirs(os.path.join(wf_base_dir,wf_name))
+            
     
         for i,roi in enumerate(rois):
             os.environ['SUBJECTS_DIR'] = self.freesurfer_dir
             
             ### saving ROI label
-            roi_path = '{out_dir}/{roi_name}-{hemi}.label'.format(out_dir=out_dir,roi_name=roi.name,hemi=roi.hemi)
+            roi_path = '{wf_base_dir}/{wf_name}/{roi_name}-{hemi}.label'.format(wf_base_dir=wf_base_dir,roi_name=roi.name,hemi=roi.hemi)
             rois_path.append(roi_path)
             roi.save(roi_path)
             
@@ -495,15 +580,14 @@ class FreesurferCoords(Coords):
         ### converting list to arrays
         self.add_trait('roi', np.array(rois))
         return self.roi,rois_path
+        
     
-    def img2imgcoord(self, dest_img, dest_name=None, method='linear',
-                     input_reorient2std=True, ref_reorient2std=False,
-                     wf_base_dir = None, wf_name='register',
-                     linear_reg_file=None, warp_field_file = None, return_as_array=False):
+    def img2imgcoord(self, ref_img, ref_name=None, method='linear', input_reorient2std=True, ref_reorient2std=False, wf_base_dir = None, wf_name='register', linear_reg_file=None, warp_field_file = None, return_as_array=False):
                      
+        ## wf_base_dir
         if wf_base_dir is None and self.working_dir is not None:
             wf_base_dir = self.working_dir
-            
+        
         elif wf_base_dir is None and self.working_dir is None:
             print('Working dir has not been specified, results will be stored in:  ', os.path.abspath('.'))             
             wf_base_dir = os.path.abspath('.')
@@ -520,7 +604,7 @@ class FreesurferCoords(Coords):
         
         ras_coords = self.coordinates['ras_coord']
         
-        new_coords = img2img_coord_register(ras_coords, os.path.join(wf_base_dir,wf_name,'rawavg_to_nifti','rawavg.nii.gz'), dest_img, wf_base_dir, method=method,
+        new_coords = img2img_coord_register(ras_coords, os.path.join(wf_base_dir,wf_name,'rawavg_to_nifti','rawavg.nii.gz'), ref_img, wf_base_dir, method=method,
                                             input_reorient2std=input_reorient2std, ref_reorient2std=ref_reorient2std,
                                             wf_name=wf_name, linear_reg_file=linear_reg_file, warp_field_file = warp_field_file)
         
@@ -531,7 +615,7 @@ class FreesurferCoords(Coords):
             for trait in self.traits_list:
                 traits[trait] = self.__getattribute__(trait)[idx]
                 
-            new_coords = Coords(coords=ras_coords, img_file=dest_img, subject=dest_name,**traits)
+            new_coords = Coords(coords=ras_coords, img_file=ref_img, subject=ref_name,**traits)
         
         return new_coords
     

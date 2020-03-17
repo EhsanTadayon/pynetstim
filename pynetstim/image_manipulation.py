@@ -91,12 +91,16 @@ def img2img_coord_register(ras_coords, img_file, dest_img, wf_base_dir, method='
                      linear_reg_file=None, warp_field_file = None):
         
         if method not in ['linear','nonlinear']:
-            raise('method should be either linear or nonlinear')                
-            
-        np.savetxt('./temp_coords.txt',ras_coords)
-        warppoints = fsl.WarpPoints()
-        warppoints.inputs.in_coords = './temp_coords.txt'
+            raise('method should be either linear or nonlinear')      
         
+        rnum1 = np.random.randint(10**15,10**16) 
+        rnum2 = np.random.randint(10**10,10**11)  
+        rnum = '{rnum1}_{rnum2}'.format(rnum1=rnum1,rnum2=rnum2)       
+        fname='./temp_{rnum}_coords.txt'.format(rnum=rnum)
+            
+        np.savetxt(fname,ras_coords)
+        warppoints = fsl.WarpPoints()
+        warppoints.inputs.in_coords = fname
         
         if linear_reg_file is None and warp_field_file is None:
             results = img2img_register(img_file = img_file, ref_file = dest_img, wf_base_dir = wf_base_dir, wf_name=wf_name, method=method,
@@ -109,11 +113,11 @@ def img2img_coord_register(ras_coords, img_file, dest_img, wf_base_dir, method='
             elif method=='nonlinear':
                 warppoints.inputs.warp_file = results['warp_field_file']
                 
-
             warppoints.inputs.src_file = results['img_file']
             warppoints.inputs.dest_file = results['ref_file']
                   
         else:
+            
             if method=='linear':
                 warppoints.inputs.xfm_file =  linear_reg_file     
             elif method=='nonlinear':
@@ -123,11 +127,11 @@ def img2img_coord_register(ras_coords, img_file, dest_img, wf_base_dir, method='
             
         warppoints.inputs.coord_mm = True
         res = warppoints.run()
-        res = np.loadtxt('./temp_coords_warped.txt')
+        res = np.loadtxt('./{fname}_warped.txt'.format(fname=fname.split('.txt')[0]))
         
         ## removing the files
-        os.remove('./temp_coords.txt')
-        os.remove('./temp_coords_warped.txt')
+        os.remove(fname)
+        os.remove('./{fname}_warped.txt'.format(fname=fname.split('.txt')[0]))
         
         return res
 
