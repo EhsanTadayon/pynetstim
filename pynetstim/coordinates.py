@@ -191,7 +191,7 @@ class Coords(object):
             for trait in self.traits_list:
                 traits[trait] = self.__getattribute__(trait)
             
-            new_coords = Coords(coords=ras_coords, img_file=ref_img, subject=ref_name,**traits)
+            new_coords = Coords(coords=new_coords, img_file=ref_img, subject=ref_name,**traits)
 
         return new_coords
             
@@ -316,7 +316,7 @@ class FreesurferCoords(Coords):
         self.fsvox2ras_tkr = self.orig_img.header.get_vox2ras_tkr()
         self.ras2ras_tkr = np.dot(self.fsvox2ras_tkr,self.ras2fsvox)
         
-        
+        coords = np.atleast_2d(coords)
         ### initiating Coords class. 
         Coords.__init__(self, coords, self.rawavg_file, subject=self.subject, coord_type='ras', working_dir=working_dir, **traits)
                 
@@ -572,7 +572,7 @@ class FreesurferCoords(Coords):
             if label2vol:
                 wf_name = '{roi_name}-{hemi}'.format(roi_name=roi.name,hemi=roi.hemi)+'_vol'
                 mri_label2vol(roi,subject=self.subject, freesurfer_dir=self.freesurfer_dir,
-                wf_base_dir=out_dir, wf_name=wf_name, tidy_up=label2vol_tidy_up)
+                wf_base_dir= wf_base_dir, wf_name=wf_name, tidy_up=label2vol_tidy_up)
         
            
         ### converting list to arrays
@@ -612,7 +612,7 @@ class FreesurferCoords(Coords):
             for trait in self.traits_list:
                 traits[trait] = self.__getattribute__(trait)
         
-            new_coords = Coords(coords=ras_coords, img_file=ref_img, subject=ref_name,**traits)
+            new_coords = Coords(coords=new_coords, img_file=ref_img, subject=ref_name,**traits)
         
         return new_coords
     
