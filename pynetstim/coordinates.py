@@ -223,7 +223,7 @@ class Coords(object):
         for trait in self.traits_list:
             traits[trait] = self.__getattribute__(trait)[idx]
         
-        return Coords(coords, self.img_file, coord_type='ras', **traits)
+        return Coords(coords, self.img_file, coord_type='ras', working_dir=self.working_dir, **traits)
         
         
     def __iter__(self):
@@ -706,6 +706,7 @@ class FreesurferCoords(Coords):
         return t
         
     def subset(self,by,vals):
+        
         idx = []
         for val in vals:
             x = np.where(self.__getattribute__(by)==val)[0][0]
@@ -719,7 +720,7 @@ class FreesurferCoords(Coords):
         for trait in self.traits_list:
             traits[trait] = self.__getattribute__(trait)[idx]
         
-        return FreesurferCoords(coords, self.subject, self.freesurfer_dir, guess_hemi=True, **traits)
+        return FreesurferCoords(coords, self.subject, self.freesurfer_dir, guess_hemi=True, working_dir=self.working_dir, **traits)
 
         
 
