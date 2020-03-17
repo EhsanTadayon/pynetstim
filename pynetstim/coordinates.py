@@ -189,13 +189,11 @@ class Coords(object):
         if return_as_array is False:
             traits={}
             for trait in self.traits_list:
-                traits[trait] = self.__getattribute__(trait)[idx]
+                traits[trait] = self.__getattribute__(trait)
             
             new_coords = Coords(coords=ras_coords, img_file=ref_img, subject=ref_name,**traits)
-            return new_coords
-        
-        else:
-            return new_coords
+
+        return new_coords
             
    
     def subset(self,by,vals):
@@ -609,23 +607,25 @@ class FreesurferCoords(Coords):
                                             wf_name=wf_name, linear_reg_file=linear_reg_file, warp_field_file = warp_field_file)
         
         if return_as_array is False:
-            
             ## traits
             traits={}
             for trait in self.traits_list:
-                traits[trait] = self.__getattribute__(trait)[idx]
-                
+                traits[trait] = self.__getattribute__(trait)
+        
             new_coords = Coords(coords=ras_coords, img_file=ref_img, subject=ref_name,**traits)
         
         return new_coords
     
-    def img2imgcoord_by_surf(self, target_subject, wf_base_dir=self.working_dir, source_surface = 'pial', source_map_surface='pial', target_surface='pial'):
+    def img2imgcoord_by_surf(self, target_subject, wf_base_dir=None, source_surface = 'pial', source_map_surface='pial', target_surface='pial'):
         
-        if wf_base_dir is None:
+        if wf_base_dir is None and self.working_dir is not None:
+            wf_base_dir = self.working_dir
+            
+        elif wf_base_dir is None and self.working_dir is None:
             print('Working dir has not been specified, results will be stored in:  ', os.path.abspath('.'))             
             wf_base_dir = os.path.abspath('.')
         
-        rois,rois_paths = self.create_surf_roi(extents=2, out_dir= os.path.join(wf_base_dir,'creating_rois'), surface=source_surface, map_surface=source_map_surface, label2vol=False)
+        rois,rois_paths = self.create_surf_roi(extents=2, out_dir= os.path.join(wf_base_dir,'img2img'), surface=source_surface, map_surface=source_map_surface, label2vol=False)
         
         wf = pe.Workflow(name='label2label',base_dir=wf_base_dir)
         for i in range(self.npoints):
@@ -725,7 +725,7 @@ class FreesurferCoords(Coords):
 
 
 
-class FSaverage(FreesurferCoords):
+class FsaverageCoords(FreesurferCoords):
     
     def __init__(self, coords, subject, freesurfer_dir, guess_hemi=True, working_dir=None, **traits):
 
