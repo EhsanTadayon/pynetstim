@@ -48,6 +48,7 @@ class Coords(object):
     
         """
         
+        coords = np.atleast_2d(coords)
         self.img_file = img_file
         self.subject=subject
         self.coord_type = coord_type
@@ -59,7 +60,7 @@ class Coords(object):
         self.coordinates = {}
         self._affineM = np.hstack((coords, np.ones((coords.shape[0],1)))).T
         self._count=0
-        coords = np.atleast_2d(coords)
+
         
         if coord_type=='ras':
             self.coordinates['ras_coord'] = coords
@@ -489,7 +490,7 @@ class FreesurferCoords(Coords):
         return results
 
         
-    def create_surf_roi(self, extents, surface='white', map_surface='white', annot=None, wf_base_dir=None, wf_name='creating_surf_roi', label2vol=False, label2vol_tidy_up=True):
+    def create_surf_roi(self, extents, surface='white', map_surface='white', annot=None, wf_base_dir=None, wf_name='surf_roi', label2vol=False, label2vol_tidy_up=True):
         """ creates surface ROIs for each stimulation target
         
         Parameters
@@ -514,7 +515,15 @@ class FreesurferCoords(Coords):
         roi: numpy.ndarray
             resulting ROIs
         """
+        ## wf_base_dir
+        if wf_base_dir is None and self.working_dir is not None:
+            wf_base_dir = self.working_dir
         
+        elif wf_base_dir is None and self.working_dir is None:
+            print('Working dir has not been specified, results will be stored in:  ', os.path.abspath('.'))             
+            wf_base_dir = os.path.abspath('.')
+            
+
         if len(self.hemi_not_determined)>0:
             raise ValueError('Use set_hemi_manually to assign hemiphere to these points: %s'%(','.join(self.hemi_not_determined)))
             
@@ -557,7 +566,7 @@ class FreesurferCoords(Coords):
         #### saving ROI labels
 
         rois_path = []
-        if not os.path.exists(wf_base_dir):
+        if not os.path.exists(os.path.join(wf_base_dir,wf_name)):
             os.makedirs(os.path.join(wf_base_dir,wf_name))
             
     
@@ -565,14 +574,14 @@ class FreesurferCoords(Coords):
             os.environ['SUBJECTS_DIR'] = self.freesurfer_dir
             
             ### saving ROI label
-            roi_path = '{wf_base_dir}/{wf_name}/{roi_name}-{hemi}.label'.format(wf_base_dir=wf_base_dir,roi_name=roi.name,hemi=roi.hemi)
+            roi_path = '{wf_base_dir}/{wf_name}/{roi_name}-{hemi}.label'.format(wf_base_dir=wf_base_dir, wf_name=wf_name, roi_name=roi.name, hemi=roi.hemi)
             rois_path.append(roi_path)
             roi.save(roi_path)
             
             if label2vol:
-                wf_name = '{roi_name}-{hemi}'.format(roi_name=roi.name,hemi=roi.hemi)+'_vol'
+                label2vol_wf_name = '{roi_name}-{hemi}'.format(roi_name=roi.name,hemi=roi.hemi)+'_vol'
                 mri_label2vol(roi,subject=self.subject, freesurfer_dir=self.freesurfer_dir,
-                wf_base_dir= wf_base_dir, wf_name=wf_name, tidy_up=label2vol_tidy_up)
+                wf_base_dir= os.path.join(wf_base_dir,wf_name), wf_name=label2vol_wf_name, tidy_up=label2vol_tidy_up)
         
            
         ### converting list to arrays
@@ -625,7 +634,7 @@ class FreesurferCoords(Coords):
             print('Working dir has not been specified, results will be stored in:  ', os.path.abspath('.'))             
             wf_base_dir = os.path.abspath('.')
         
-        rois,rois_paths = self.create_surf_roi(extents=2, out_dir= os.path.join(wf_base_dir,'img2img'), surface=source_surface, map_surface=source_map_surface, label2vol=False)
+        rois,rois_paths = self.create_surf_roi(extents=2, wf_base_dir= wf_base_dir, wf_name='img2imgcoord_by_surf_roi', surface=source_surface, map_surface=source_map_surface, label2vol=False)
         
         wf = pe.Workflow(name='label2label',base_dir=wf_base_dir)
         for i in range(self.npoints):
@@ -728,7 +737,7 @@ class FreesurferCoords(Coords):
 
 class FsaverageCoords(FreesurferCoords):
     
-    def __init__(self, coords, subject, freesurfer_dir, guess_hemi=True, working_dir=None, **traits):
+    def __init__(self, coords, subject='fsaverage', freesurfer_dir=os.environ['SUBJECTS_DIR'], guess_hemi=True, working_dir=None, **traits):
 
         """
         This class implements methods to transform between coordinates in the Freesurfer space.
