@@ -1,31 +1,6 @@
 ### Utils
 import os
 
-def make_head_model(anat_img, out_dir):
-    
-    """ create head models including skin and skull. 
-    
-    Note that rawavg.mgz should be specified ( not orig.mgz) to create head models for the purpose of visualizaiton"""
-    
-    if not os.path.exists(out_dir):
-        os.makedirs(out_dir)
-        
-    if not os.path.exists(os.path.join(out_dir,'outer_skin_surface')):
-        
-        cmd ='cd {out_dir}; mri_watershed -surf surf {anat_img} brain.mgz'.format(out_dir=out_dir, anat_img=anat_img)
-        os.system(cmd)
-
-        for f in ['lh.surf_brain_surface','lh.surf_inner_skull_surface','lh.surf_outer_skin_surface','lh.surf_outer_skull_surface']:
-            cmd = 'mv {out_dir}/{f} {out_dir}/{f2}'.format(f=f,f2=f.split('lh.surf_')[1],out_dir=out_dir)
-            os.system(cmd)
-    else: 
-        print('head model exists!')
-        
-        
-
-
-
-
 
 ### Python miscellaneous functions and classes for plotting 
 ### author: Ehsan Tadayon [ sunny.tadayon@gmail.com]
