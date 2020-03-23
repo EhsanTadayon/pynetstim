@@ -37,7 +37,7 @@ class Simnibs(object):
             
             t12simnibs_reg = self.register_T1_to_simnibs()
             
-            targets_ras = img2img_coord_register(targets_ras, img_file=self.orig_t1, ref_img=self.simnibs_t1, method='linear',
+            targets_ras = img2img_coord_register(targets_ras, img_file=self.orig_t1, dest_img=self.simnibs_t1, method='linear',
                     linear_reg_file=t12simnibs_reg,return_as_array=True)
                 
 
