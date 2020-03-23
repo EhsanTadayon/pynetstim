@@ -27,34 +27,33 @@ class Simnibs(object):
             os.makedirs(wf_base_dir)
             
             
-    def add_targets(self, targets, csv_fname, t12simnibs=False, project2skin=True, distance=4):
+    def add_targets(self, targets, csv_fname, t12simnibs=False, project2skin=True, coil_distance=4):
         
         targets_ras = targets.coordinates['ras_coord']
-
+        simnibs_t1 = os.path.join(self.mesh_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz')
         
         if t12simnibs:
             
-                t12simnibs_reg = self.register_T1_to_simnibs()
-                
-                targets_ras = img2img_coord_register(targets_ras, img_file=self.anat_img, ref_img=os.path.join(self.mesh_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz'), method='linear',
-                        linear_reg_file=t12simnibs_reg,return_as_array=True)
+            t12simnibs_reg = self.register_T1_to_simnibs()
+            
+            targets_ras = img2img_coord_register(targets_ras, img_file=self.anat_img, ref_img=simnibs_t1, method='linear',
+                    linear_reg_file=t12simnibs_reg,return_as_array=True)
                 
 
         if project2skin is True:
             
-            input_img = os.path.join(self.mesh_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz')
-            make_head_model(input_img, os.path.join(self.mesh_dir,'bem'))
+            make_head_model(simnibs_t1, os.path.join(self.mesh_dir,'bem'))
             
             skin_surface = Surf(os.path.join(self.mesh_dir,'bem','outer_skin_surface'))
-            temp = Coords(targets_ras,img_file=input_img)
+            temp = Coords(targets_ras,img_file=simnibs_t1)
             results = temp.map_to_surface(skin_surface)
             targets_ras = results['ras_coord']
             
-        targets = Coords(targets_ras, img_file=self.anat_img, working_dir=targets.working_dir, **targets.get_traits_dict())
+        targets = Coords(targets_ras, img_file=simnibs_t1, working_dir=targets.working_dir, **targets.get_traits_dict())
 
         self.targets = targets
         self.csv_fname = csv_fname
-        self._targets_to_csv(csv_fname)
+        self._targets_to_csv(csv_fname, dist=coil_distance)
     
             
         
@@ -84,7 +83,7 @@ class Simnibs(object):
 
    
 
-    def _targets_to_csv(self, fname, dist=4):
+    def _targets_to_csv(self, fname, dist):
 
         if not os.path.exists(os.path.join(self.wf_base_dir,'simnibs_targets')):
             os.makedirs(os.path.join(self.wf_base_dir,'simnibs_targets'))
