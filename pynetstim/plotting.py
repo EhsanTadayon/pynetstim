@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import os
 import copy
-from .utils import make_head_model
+from .image_manipulation import make_head_model
 
 
 class plotting_points(object):

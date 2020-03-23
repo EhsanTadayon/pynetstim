@@ -5,7 +5,7 @@ import os
 from .coordinates import Coords,FreesurferCoords
 from simnibs import sim_struct, run_simnibs
 from .freesurfer_files import Surf
-from .image_manipulations import img2img_coord_register, make_head_model
+from .image_manipulation import img2img_coord_register, make_head_model
 
 ## finding simnibs_paths
 paths = os.environ['PATH'].split(':')

@@ -14,8 +14,9 @@ from .freesurfer_files import Surf, FreesurferSurf, Annot
 from nipype.interfaces.fsl import FLIRT,FNIRT
 from .plotting import plotting_points_fast,plotting_points
 from scipy.spatial.distance import cdist
-from .utils import make_head_model, HtmlDoc, clean_plot
+from .utils import  HtmlDoc, clean_plot
 import shutil
+from .image_manipulation import make_head_model
 
 
 ##### Classes in this module: 
