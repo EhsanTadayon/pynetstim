@@ -16,13 +16,14 @@ class Simnibs(object):
 
     SIMNIBSDIR= simnibs_path
     
-    def __init__(self, subject, anat_img, mesh_dir, wf_base_dir):
+    def __init__(self, subject, mesh_dir, wf_base_dir):
         
         self.subject = subject
-        self.anat_img = anat_img
         self.mesh_dir = mesh_dir
         self.wf_base_dir = wf_base_dir
-                
+        self.simnibs_t1 = os.path.join(self.mesh_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz')
+        self.orig_t1 = os.path.join(self.mesh_dir,'m2m_'+self.subject,'T1fs.nii.gz')     
+       
         if not os.path.exists(wf_base_dir):
             os.makedirs(wf_base_dir)
             
@@ -30,26 +31,26 @@ class Simnibs(object):
     def add_targets(self, targets, csv_fname, t12simnibs=False, project2skin=True, coil_distance=4):
         
         targets_ras = targets.coordinates['ras_coord']
-        simnibs_t1 = os.path.join(self.mesh_dir, 'm2m_'+self.subject,'T1fs_conform.nii.gz')
+
         
         if t12simnibs:
             
             t12simnibs_reg = self.register_T1_to_simnibs()
             
-            targets_ras = img2img_coord_register(targets_ras, img_file=self.anat_img, ref_img=simnibs_t1, method='linear',
+            targets_ras = img2img_coord_register(targets_ras, img_file=self.orig_t1, ref_img=self.simnibs_t1, method='linear',
                     linear_reg_file=t12simnibs_reg,return_as_array=True)
                 
 
         if project2skin is True:
             
-            make_head_model(simnibs_t1, os.path.join(self.mesh_dir,'bem'))
+            make_head_model(self.simnibs_t1, os.path.join(self.mesh_dir,'bem'))
             
             skin_surface = Surf(os.path.join(self.mesh_dir,'bem','outer_skin_surface'))
-            temp = Coords(targets_ras,img_file=simnibs_t1)
+            temp = Coords(targets_ras,img_file=self.simnibs_t1)
             results = temp.map_to_surface(skin_surface)
             targets_ras = results['ras_coord']
             
-        targets = Coords(targets_ras, img_file=simnibs_t1, working_dir=targets.working_dir, **targets.get_traits_dict())
+        targets = Coords(targets_ras, img_file=self.simnibs_t1, working_dir=targets.working_dir, **targets.get_traits_dict())
 
         self.targets = targets
         self.csv_fname = csv_fname
