@@ -28,6 +28,7 @@ from collections import defaultdict
 
 
 
+
 #############################################################################################################################
 #                                                          Coords class 
 #############################################################################################################################
@@ -60,6 +61,9 @@ class Coords(object):
         self.coordinates = {}
         self._affineM = np.hstack((coords, np.ones((coords.shape[0],1)))).T
         self._count=0
+        self._to_freesurfer_format()
+        
+        
 
         
         if coord_type=='ras':
@@ -77,7 +81,51 @@ class Coords(object):
         for trait in traits:
             self.add_trait(trait,traits[trait])     
             
+    
+    def _to_freesurfer_format(self):
+        
+        if self.working_dir is not None:
+            os.makedirs(os.path.join(self.working_dir,'to_freesurfer_format'))
+            wf_dir = os.path.join(self.working_dir,'to_freesurfer_format')
+        else:
+            rnum1 = np.random.randint(10**15,10**16) 
+            rnum2 = np.random.randint(10**10,10**11)  
+            rnum = '{rnum1}_{rnum2}'.format(rnum1=rnum1,rnum2=rnum2)       
+            os.makedirs(os.path.join(os.path.abspath('.'),'temp_{rnum}'.format(rnum=rnum)))
+            wf_dir = os.path.join(os.path.abspath('.'),'temp_{rnum}'.format(rnum=rnum))
             
+        ## creating rawavg.mgz
+        mc = MRIConvert()
+        mc.inputs.in_file = self.img_file
+        mc.inputs.out_file = os.path.join(wf_dir,'rawavg.mgz')
+        mc.inputs.out_type = 'mgz'
+        mc.run()
+        
+        ## creating orig.mgz
+        mc = MRIConvert()
+        mc.inputs.in_file = os.path.join(wf_dir,'rawavg.mgz')
+        mc.inputs.out_file = os.path.join(wf_dir,'orig.mgz')
+        mc.inputs.out_type = 'mgz'
+        mc.inputs.conform = True
+        mc.run()
+        
+        
+        rawavg_file = os.path.join(wf_dir,'rawavg.mgz')            
+        orig_file = os.path.join(wf_dir,'orig.mgz')
+        
+        ### loading 
+        orig_img = nib.freesurfer.load(orig_file)
+        self.ras2fsvox = orig_img.header.get_ras2vox()
+        self.fsvox2ras_tkr = orig_img.header.get_vox2ras_tkr()
+        self.ras2ras_tkr = np.dot(self.fsvox2ras_tkr,self.ras2fsvox)
+                
+        self.coordinates['ras_tkr_coord'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, self._affineM)).T[:,:3]
+        self.coordinates['fsvoxel_coord'] = np.round(np.dot(self.ras2fsvox,self._affineM).T[:,:3])
+        
+        ## removing the output
+        if self.working_dir is None:
+            shutil.rmtree(wf_dir)
+          
             
     def add_trait(self,trait,value):
         
@@ -138,7 +186,27 @@ class Coords(object):
             
             results.append(coords_df)
             
-        return pd.concat(results,axis=1)        
+        return pd.concat(results,axis=1)  
+        
+        
+    def map_to_surface(self, surface):
+        
+        """
+        maps the points to a surface ( either pial or white) or an instance of Surf class. 
+        """
+        if not isinstance(surface,Surf):
+            raise ("surface should be an instance of Surf")
+        
+        coords_ras_tkr = self.coordinates['ras_tkr_coord']
+        indices = np.argmin(cdist(surface.vertices, coords_ras_tkr), axis=0)
+        mapped_coords_ras_tkr = surface.vertices[indices,:]
+
+        mapped_coords_ras_tkr_affineM = np.hstack((mapped_coords_ras_tkr,np.ones((mapped_coords_ras_tkr.shape[0],1))))
+        mapped_coords_ras = np.dot(np.linalg.inv(self.ras2ras_tkr),mapped_coords_ras_tkr_affineM.T).T
+        mapped_coords_ras = mapped_coords_ras[:,0:3]
+        results = {'vertices': indices, 'ras_coord': mapped_coords_ras, 'ras_tkr_coord':mapped_coords_ras_tkr}
+        
+        return results      
     
     
     def img2imgcoord(self, ref_img, ref_name=None, method='linear', input_reorient2std=False, ref_reorient2std=False, wf_base_dir=None, wf_name='register',
@@ -230,7 +298,7 @@ class Coords(object):
     def __iter__(self):
         return self
     
-    def next(self):
+    def __next__(self):
         
         if self._count>=self.npoints:
             self._count = 0
@@ -676,7 +744,7 @@ class FreesurferCoords(Coords):
     def __iter__(self):
         return self
         
-    def next(self):
+    def __next__(self):
         
         if self._count>=self.npoints:
             self._count = 0
