@@ -59,74 +59,70 @@ class Coords(object):
         self.ras2vox = np.linalg.inv(self.vox2ras)
         self.npoints = coords.shape[0]
         self.coordinates = {}
-        self._affineM = np.hstack((coords, np.ones((coords.shape[0],1)))).T
+        affineM= self._to_affine_matrix(coords)
         self._count=0
-        self._to_freesurfer_format()
-        
-        
-
         
         if coord_type=='ras':
             self.coordinates['ras_coord'] = coords
-            self.coordinates['voxel_coord'] = np.round(np.dot(self.ras2vox,self._affineM).T[:,:3])
+            self.coordinates['voxel_coord'] = np.round(np.dot(self.ras2vox,affineM).T[:,:3])
         
         elif coord_type=='voxel':
             self.coordinates['voxel_coord'] = coords
-            self.coordinates['ras_coord'] = np.dot(self.vox2ras,self._affineM).T[:,:3]
+            self.coordinates['ras_coord'] = np.dot(self.vox2ras,affineM).T[:,:3]
             
         else:
             raise ValueError('type should be either "ras" or "voxel"')
             
-        self.traits_list = []
-        for trait in traits:
-            self.add_trait(trait,traits[trait])     
             
-    
-    def _to_freesurfer_format(self):
+        ### to freesurfer coords
         
-        if self.working_dir is not None:
-            os.makedirs(os.path.join(self.working_dir,'to_freesurfer_format'))
-            wf_dir = os.path.join(self.working_dir,'to_freesurfer_format')
-        else:
-            rnum1 = np.random.randint(10**15,10**16) 
-            rnum2 = np.random.randint(10**10,10**11)  
-            rnum = '{rnum1}_{rnum2}'.format(rnum1=rnum1,rnum2=rnum2)       
-            os.makedirs(os.path.join(os.path.abspath('.'),'temp_{rnum}'.format(rnum=rnum)))
-            wf_dir = os.path.join(os.path.abspath('.'),'temp_{rnum}'.format(rnum=rnum))
-            
+        rnum1 = np.random.randint(10**15,10**16) 
+        rnum2 = np.random.randint(10**10,10**11)  
+        rnum = '{rnum1}_{rnum2}'.format(rnum1=rnum1,rnum2=rnum2)       
+        os.makedirs(os.path.join(os.path.abspath('.'),'temp_{rnum}'.format(rnum=rnum)))
+        wf_dir = os.path.join(os.path.abspath('.'),'temp_{rnum}'.format(rnum=rnum))
+        
         ## creating rawavg.mgz
         mc = MRIConvert()
-        mc.inputs.in_file = self.img_file
+        mc.inputs.in_file = img_file
         mc.inputs.out_file = os.path.join(wf_dir,'rawavg.mgz')
         mc.inputs.out_type = 'mgz'
         mc.run()
-        
+
         ## creating orig.mgz
+
         mc = MRIConvert()
         mc.inputs.in_file = os.path.join(wf_dir,'rawavg.mgz')
         mc.inputs.out_file = os.path.join(wf_dir,'orig.mgz')
         mc.inputs.out_type = 'mgz'
         mc.inputs.conform = True
         mc.run()
-        
-        
+
+    
         rawavg_file = os.path.join(wf_dir,'rawavg.mgz')            
         orig_file = os.path.join(wf_dir,'orig.mgz')
-        
+    
         ### loading 
         orig_img = nib.freesurfer.load(orig_file)
         self.ras2fsvox = orig_img.header.get_ras2vox()
         self.fsvox2ras_tkr = orig_img.header.get_vox2ras_tkr()
         self.ras2ras_tkr = np.dot(self.fsvox2ras_tkr,self.ras2fsvox)
-                
-        self.coordinates['ras_tkr_coord'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, self._affineM)).T[:,:3]
-        self.coordinates['fsvoxel_coord'] = np.round(np.dot(self.ras2fsvox,self._affineM).T[:,:3])
-        
-        ## removing the output
-        if self.working_dir is None:
-            shutil.rmtree(wf_dir)
-          
             
+        ras_affineM = self._to_affine_matrix(self.coordinates['ras_coord'])
+        self.coordinates['ras_tkr_coord'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, ras_affineM)).T[:,:3]
+        self.coordinates['fsvoxel_coord'] = np.round(np.dot(self.ras2fsvox,ras_affineM).T[:,:3])
+        
+          
+          
+        ##3 adding traits    
+        self.traits_list = []
+        for trait in traits:
+            self.add_trait(trait,traits[trait])     
+                  
+    def _to_affine_matrix(self,coords):
+        return np.hstack((coords, np.ones((coords.shape[0],1)))).T
+        
+    
     def add_trait(self,trait,value):
         
         """
@@ -194,6 +190,7 @@ class Coords(object):
         """
         maps the points to a surface ( either pial or white) or an instance of Surf class. 
         """
+        
         if not isinstance(surface,Surf):
             raise ("surface should be an instance of Surf")
         
@@ -292,7 +289,7 @@ class Coords(object):
         for trait in self.traits_list:
             traits[trait] = self.__getattribute__(trait)[idx]
         
-        return Coords(coords, self.img_file, coord_type='ras', working_dir=self.working_dir, **traits)
+        return Coords(coords, self.img_file , coord_type='ras', working_dir=self.working_dir, **traits)
         
         
     def __iter__(self):
@@ -351,7 +348,7 @@ class MNICoords(Coords):
 #############################################################################################################################           
 class FreesurferCoords(Coords):
 
-    def __init__(self, coords, subject, freesurfer_dir, guess_hemi=True, working_dir=None, **traits):
+    def __init__(self, coords, subject, freesurfer_dir, guess_hemi=True, working_dir=None, coord_type='ras', **traits):
 
         """
         This class implements methods to transform between coordinates in the Freesurfer space.
@@ -374,30 +371,64 @@ class FreesurferCoords(Coords):
         self.freesurfer_dir = freesurfer_dir
         self.subject = subject
         self.working_dir = working_dir
+        coords = np.atleast_2d(coords)
+        self.coord_type = coord_type
+        
         
         ## setting image file names
-        self.rawavg_file = '{freesurfer_dir}/{subject}/mri/rawavg.mgz'.format(freesurfer_dir=freesurfer_dir,subject=subject)            
+        rawavg_file = '{freesurfer_dir}/{subject}/mri/rawavg.mgz'.format(freesurfer_dir=freesurfer_dir,subject=subject)            
         orig_file = '{freesurfer_dir}/{subject}/mri/orig.mgz'.format(freesurfer_dir=freesurfer_dir,subject=subject)
+        self.img_file = rawavg_file
         
-        ### loading 
+        
+        ### 
+        self.img = nib.load(self.img_file)
         self.orig_img = nib.freesurfer.load(orig_file)
+        
+        ## transformations
+        self.vox2ras = self.img.affine
+        self.ras2vox = np.linalg.inv(self.vox2ras)
         self.ras2fsvox = self.orig_img.header.get_ras2vox()
         self.fsvox2ras_tkr = self.orig_img.header.get_vox2ras_tkr()
         self.ras2ras_tkr = np.dot(self.fsvox2ras_tkr,self.ras2fsvox)
+    
+    
+        ## populating coordinates
+        self.npoints = coords.shape[0]
+        self.coordinates = {}
+        self._count=0
         
-        coords = np.atleast_2d(coords)
-        ### initiating Coords class. 
-        Coords.__init__(self, coords, self.rawavg_file, subject=self.subject, coord_type='ras', working_dir=working_dir, **traits)
-                
-        self.coordinates['ras_tkr_coord'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, self._affineM)).T[:,:3]
-        self.coordinates['fsvoxel_coord'] = np.round(np.dot(self.ras2fsvox,self._affineM).T[:,:3])
-        self.coordinates['talairach_coord'] = self._get_talairach_coords()
         
-        ## guessing hemisphere
-        if guess_hemi:
-            self._guess_hemi()
+        affineM = self._to_affine_matrix(coords)
+        
+        if coord_type=='ras':
+            self.coordinates['ras_coord'] = coords
+            self.coordinates['voxel_coord'] = np.round(np.dot(self.ras2vox,affineM).T[:,:3])
+        
+        elif coord_type=='voxel':
+            self.coordinates['voxel_coord'] = coords
+            self.coordinates['ras_coord'] = np.dot(self.vox2ras,affineM).T[:,:3]
+        
+        else:
+            raise ValueError('type should be either "ras" or "voxel"')
             
-
+       
+        ras_affineM = self._to_affine_matrix(self.coordinates['ras_coord'])
+        self.coordinates['ras_tkr_coord'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, ras_affineM)).T[:,:3]
+        self.coordinates['fsvoxel_coord'] = np.round(np.dot(self.ras2fsvox,ras_affineM).T[:,:3])
+        self.coordinates['talairach_coord'] = self._get_talairach_coords()
+       
+       
+       ## guessing hemisphere
+        if guess_hemi:
+            self._guess_hemi() 
+       
+       ## adding traits
+        self.traits_list = []
+        for trait in traits:
+            self.add_trait(trait,traits[trait])
+            
+            
    
     def _guess_hemi(self):
         """
@@ -455,12 +486,12 @@ class FreesurferCoords(Coords):
         return np.array(rows)
     
     
+
     def _get_talairach_coords(self):
         """ transforms the coordinates by talairach transform matrix from freesurfer talairach.xfm"""
         talairach_tr = self._read_talaraich_transformation()
-        return np.dot(talairach_tr,self._affineM).T[:,:3]
-          
-          
+        return np.dot(talairach_tr,self._to_affine_matrix(self.coordinates['ras_coord'])).T[:,:3]
+            
     def map_to_annot(self, annot, map_surface='white', inplace=True):
         """ map each point to specified annotation 
         
@@ -669,7 +700,7 @@ class FreesurferCoords(Coords):
                  
         ## converting rawavg to nifti
         mc = MRIConvert()
-        mc.inputs.in_file = self.rawavg_file
+        mc.inputs.in_file = self.img_file
         mc.inputs.out_file = 'rawavg.nii.gz'
         mc.inputs.out_type = 'niigz'
         mc_node = pe.Node(mc,name='rawavg_to_nifti')
@@ -865,6 +896,10 @@ class _FreesurferCoord(object):
         self.__setattr__(trait,value)
         if trait not in self.traits_list:
             self.traits_list.append(trait)
+            
+            
+
+
 
 
         
