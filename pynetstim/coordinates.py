@@ -586,6 +586,7 @@ class FreesurferCoords(Coords):
 
         
     def create_surf_roi(self, extents, surface='white', map_surface='white', annot=None, wf_base_dir=None, wf_name='surf_roi', label2vol=False, label2vol_tidy_up=True,add_vertex_to_name=True):
+        
         """ creates surface ROIs for each stimulation target
         
         Parameters
@@ -618,7 +619,6 @@ class FreesurferCoords(Coords):
             print('Working dir has not been specified, results will be stored in:  ', os.path.abspath('.'))             
             wf_base_dir = os.path.abspath('.')
             
-
         if len(self.hemi_not_determined)>0:
             raise ValueError('Use set_hemi_manually to assign hemiphere to these points: %s'%(','.join(self.hemi_not_determined)))
             
@@ -686,8 +686,8 @@ class FreesurferCoords(Coords):
                 label2vol_wf_name = '{roi_name}-{hemi}'.format(roi_name=roi.name,hemi=roi.hemi)+'_vol'
                 mri_label2vol(roi,subject=self.subject, freesurfer_dir=self.freesurfer_dir,
                 wf_base_dir= os.path.join(wf_base_dir,wf_name), wf_name=label2vol_wf_name, tidy_up=label2vol_tidy_up)
-        
-           
+                shutil.move(os.path.join(wf_base_dir,wf_name,label2vol_wf_name,'mask_with_gm','{roi_name}-{hemi}.nii.gz'),os.path.join(wf_base_dir,wf_name))
+                shutil.rmtree(os.path.join(wf_base_dir,wf_name,label2vol_wf_name))
         ### converting list to arrays
         self.add_trait('roi', np.array(rois))
         return self.roi,rois_path
