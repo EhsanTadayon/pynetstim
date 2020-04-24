@@ -156,7 +156,7 @@ def mri_label2vol(label, subject, freesurfer_dir, wf_base_dir, wf_name, proj=(u'
         mris_calc = pe.Node(MRIsCalc(),name='mask_with_gm')
         mris_calc.inputs.in_file2=os.path.join(freesurfer_dir,subject,'mri/{hemi}.ribbon.mgz'.format(hemi=label.hemi))
         mris_calc.inputs.action='mul'
-        mris_calc.inputs.out_file=label.name+'.nii.gz'
+        mris_calc.inputs.out_file=label.name+'-'+label.hemi+'.nii.gz'
         wf.add_nodes([label2vol, mask_dilate, mris_calc])
         wf.connect([
                     (label2vol,mask_dilate,[("vol_label_file","in_file")]),
