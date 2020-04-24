@@ -23,12 +23,6 @@ from mne import Label
 from collections import defaultdict
 
 
-
-
-
-
-
-
 #############################################################################################################################
 #                                                          Coords class 
 #############################################################################################################################
@@ -101,7 +95,9 @@ class Coords(object):
     
         rawavg_file = os.path.join(wf_dir,'rawavg.mgz')            
         orig_file = os.path.join(wf_dir,'orig.mgz')
-    
+        
+        
+        
         ### loading 
         orig_img = nib.freesurfer.load(orig_file)
         self.ras2fsvox = orig_img.header.get_ras2vox()
@@ -112,7 +108,7 @@ class Coords(object):
         self.coordinates['ras_tkr_coord'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, ras_affineM)).T[:,:3]
         self.coordinates['fsvoxel_coord'] = np.round(np.dot(self.ras2fsvox,ras_affineM).T[:,:3])
         
-          
+        shutil.rmtree(wf_dir)  
           
         ##3 adding traits    
         self.traits_list = []
@@ -589,7 +585,7 @@ class FreesurferCoords(Coords):
         return results
 
         
-    def create_surf_roi(self, extents, surface='white', map_surface='white', annot=None, wf_base_dir=None, wf_name='surf_roi', label2vol=False, label2vol_tidy_up=True):
+    def create_surf_roi(self, extents, surface='white', map_surface='white', annot=None, wf_base_dir=None, wf_name='surf_roi', label2vol=False, label2vol_tidy_up=True,add_vertex_to_name=True):
         """ creates surface ROIs for each stimulation target
         
         Parameters
@@ -646,20 +642,29 @@ class FreesurferCoords(Coords):
             for i in range(self.npoints):
                 rois[i].color = colors[i]
                 vertex = mapped_vertices[i]
-                rois[i].name = structures[i]+'_{r}mm_{surf}_{vertex}'.format(r=extents[i],surf=surface,vertex=vertex)
+                if add_vertex_to_name:
+                    rois[i].name = structures[i]+'_{r}mm_{surf}_{vertex}'.format(r=extents[i],surf=surface,vertex=vertex)
+                else:
+                    rois[i].name = structures[i]+'_{r}mm_{surf}'.format(r=extents[i],surf=surface)
                 
         elif hasattr(self,'name') or hasattr(self,'color'):
             for i in range(self.npoints):
                 if hasattr(self,'name'):
                     vertex = mapped_vertices[i]
-                    rois[i].name = self.name[i]+'_{r}mm_{surf}_{vertex}'.format(r=extents[i],surf=surface,vertex=vertex)
+                    if add_vertex_to_name:
+                        rois[i].name = self.name[i]+'_{r}mm_{surf}_{vertex}'.format(r=extents[i],surf=surface,vertex=vertex)
+                    else:
+                        rois[i].name = self.name[i]+'_{r}mm_{surf}'.format(r=extents[i],surf=surface,vertex=vertex)
                 if hasattr(self,'color'):
                     rois[i].color = self.color[i]
 
         else:
             for i in range(self.npoints):
                 vertex = mapped_vertices[i]
-                rois[i].name = 'coor_id_{i}_{r}mm_{surf}_{vertex}'.format(r=extents[i],surf=surface,vertex=vertex,i=i)
+                if add_vertex_to_name:
+                    rois[i].name = 'coor_id_{i}_{r}mm_{surf}_{vertex}'.format(r=extents[i],surf=surface,vertex=vertex,i=i)
+                else:
+                    rois[i].name = 'coor_id_{i}_{r}mm_{surf}_{vertex}'.format(r=extents[i],surf=surface,vertex=vertex,i=i)
             
 
         #### saving ROI labels
@@ -853,27 +858,44 @@ class FsaverageCoords(FreesurferCoords):
         self.freesurfer_dir = freesurfer_dir
         self.subject = subject
         self.working_dir = working_dir
+        coords = np.atleast_2d(coords)
+
         
-        ## setting image file names           
-        orig_file = '{freesurfer_dir}/{subject}/mri/orig.mgz'.format(freesurfer_dir=freesurfer_dir,subject=self.subject)
         
-        ### loading 
+        ## setting image file names
+            
+        orig_file = '{freesurfer_dir}/{subject}/mri/orig.mgz'.format(freesurfer_dir=freesurfer_dir,subject=subject)
+        
+        
+        ## transformations
         self.orig_img = nib.freesurfer.load(orig_file)
         self.ras2fsvox = self.orig_img.header.get_ras2vox()
         self.fsvox2ras_tkr = self.orig_img.header.get_vox2ras_tkr()
         self.ras2ras_tkr = np.dot(self.fsvox2ras_tkr,self.ras2fsvox)
         
+    
+        ## populating coordinates
+        self.npoints = coords.shape[0]
+        self.coordinates = {}
+        self.coordinates['ras_coord'] = coords
+        self._count=0
         
-        ### initiating Coords class. 
-        Coords.__init__(self, coords, orig_file, subject=self.subject, coord_type='ras', working_dir=working_dir, **traits)
-                
-        self.coordinates['ras_tkr_coord'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, self._affineM)).T[:,:3]
-        self.coordinates['fsvoxel_coord'] = np.round(np.dot(self.ras2fsvox,self._affineM).T[:,:3])
+        affineM = self._to_affine_matrix(coords)
+        
+        ### initiating Coords class.         
+        self.coordinates['ras_tkr_coord'] = np.dot(self.fsvox2ras_tkr,np.dot(self.ras2fsvox, affineM)).T[:,:3]
+        self.coordinates['fsvoxel_coord'] = np.round(np.dot(self.ras2fsvox,affineM).T[:,:3])
         self.coordinates['talairach_coord'] = self.coordinates['ras_coord']
+        self.coordinates['voxel_coord'] = self.coordinates['fsvoxel_coord']
         
         ## guessing hemisphere
         if guess_hemi:
             self._guess_hemi()
+            
+        ## adding traits
+        self.traits_list = []
+        for trait in traits:
+            self.add_trait(trait,traits[trait])
 
 class _FreesurferCoord(object):
     def __init__(self,ras_coord, voxel_coord, ras_tkr_coord, fsvoxel_coord, talairach_coord, hemi, **kwargs):
