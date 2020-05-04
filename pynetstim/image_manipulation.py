@@ -149,7 +149,8 @@ def mri_label2vol(label, subject, freesurfer_dir, wf_base_dir, wf_name, proj=(u'
     label2vol = pe.Node(Label2Vol(label_file=label_file,
      template_file=os.path.join(freesurfer_dir,subject,'mri/T1.mgz'),
      hemi=label.hemi, proj=proj, identity=identity, subject_id=subject), name='label2vol')
-    
+  
+   
     if tidy_up:    
         
         mask_dilate = pe.Node(Binarize(dilate=1,erode=1,min=1),name='dilate_label_vol')
@@ -162,10 +163,15 @@ def mri_label2vol(label, subject, freesurfer_dir, wf_base_dir, wf_name, proj=(u'
                     (label2vol,mask_dilate,[("vol_label_file","in_file")]),
                     (mask_dilate,mris_calc,[('binary_file','in_file1')]),
                     ])
+                    
+        out_vol = '{wf_base_dir}/{wf_name}/mask_with_gm/{output}'.format(wf_base_dir=wf_base_dir,wf_name=wf_name,output=label.name+'-'+label.hemi+'.nii.gz')
     else:
         wf.add_nodes([label2vol])
+        out_vol = '{wf_base_dir}/{wf_name}/label2vol/{output}'.format(wf_base_dir=wf_base_dir,wf_name=wf_name,output=label.name+'-'+label.hemi+'.nii.gz')
     
     wf.run()
+    return out_vol
+    
 
 
 
