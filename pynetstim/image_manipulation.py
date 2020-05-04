@@ -136,7 +136,7 @@ def img2img_coord_register(ras_coords, img_file, dest_img, wf_base_dir, method='
         return res
 
 
-def mri_label2vol(label, subject, freesurfer_dir, wf_base_dir, wf_name, proj=(u'frac',0,1,0.01), identity=True, tidy_up=True):
+def mri_label2vol(label, subject, freesurfer_dir, wf_base_dir, wf_name, proj=(u'frac',0,1,0.01), identity=True, tidy_up=True,**kwargs):
     
     wf = pe.Workflow(name=wf_name, base_dir=wf_base_dir)
     
