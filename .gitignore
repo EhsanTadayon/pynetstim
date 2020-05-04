@@ -1,8 +1,7 @@
-*.pyc
-pynetstim/*.pyc
-pynetstim/temp/**
-examples/working_with_brainsight_module/example_data
+.pyc
+pynetstim/temp/
 docs/PyNetStim-ProjectLog.docs
-pynetstim/*.ipynb_checkpoints
+.ipynb_checkpoints
 .DS_Store
+
 
