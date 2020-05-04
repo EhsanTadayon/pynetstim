@@ -586,7 +586,7 @@ class FreesurferCoords(Coords):
 
         
     def create_surf_roi(self, extents, surface='white', map_surface='white', annot=None, wf_base_dir=None,
-      wf_name='surf_roi', add_vertex_to_name=True, label2vol=False,label2vol_tidy_up=False, **kwargs):
+      wf_name='surf_roi', add_vertex_to_name=True):
         
         """ creates surface ROIs for each stimulation target
         
@@ -683,17 +683,6 @@ class FreesurferCoords(Coords):
             rois_path.append(roi_path)
             roi.save(roi_path)
             
-            if label2vol:
-                label2vol_wf_name = '{roi_name}-{hemi}'.format(roi_name=roi.name,hemi=roi.hemi)+'_vol'
-                mri_label2vol(roi,subject=self.subject, freesurfer_dir=self.freesurfer_dir,
-                wf_base_dir= os.path.join(wf_base_dir,wf_name), wf_name=label2vol_wf_name, tidy_up=label2vol_tidy_up,**kwargs)
-                if label2vol_tidy_up:
-                    shutil.move(os.path.join(wf_base_dir,wf_name,label2vol_wf_name,'mask_with_gm','{roi_name}-{hemi}.nii.gz'.format(roi_name=roi.name,hemi=roi.hemi)),
-                os.path.join(wf_base_dir,wf_name))
-                else:
-                    shutil.move(os.path.join(wf_base_dir,wf_name,label2vol_wf_name,'label2vol','{roi_name}-{hemi}.nii.gz'.format(roi_name=roi.name,hemi=roi.hemi)),
-                    os.path.join(wf_base_dir,wf_name))
-                shutil.rmtree(os.path.join(wf_base_dir,wf_name,label2vol_wf_name))
         ### converting list to arrays
         self.add_trait('roi', np.array(rois))
         return self.roi,rois_path
