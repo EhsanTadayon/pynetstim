@@ -16,7 +16,7 @@ setup(
       zip_safe=False,
       packages=['pynetstim'],
       url = 'https://github.com/EhsanTadayon/pynetstim',
-      download_url='https://github.com/EhsanTadayon/pynetstim/archive/v_0.1-alpha.tar.gz',
+      download_url='https://github.com/EhsanTadayon/pynetstim/archive/v_0.2-alpha.tar.gz',
       keywords = ['brain network','stimulation','imaging','fMRI','diffusion','TMS'],
       install_requires=[
           'numpy',
