@@ -13,7 +13,7 @@ setup(
       author='Ehsan Tadayon',
       author_email='sunny.tadayon@gmail.com',
       license='MIT',
-      zip_safe='false',
+      zip_safe=False,
       packages=['pynetstim'],
       url = 'https://github.com/EhsanTadayon/pynetstim',
       download_url='https://github.com/EhsanTadayon/pynetstim/archive/v_0.1-alpha.tar.gz',
