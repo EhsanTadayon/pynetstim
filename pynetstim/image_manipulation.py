@@ -148,7 +148,9 @@ def mri_label2vol(label, subject, freesurfer_dir, wf_base_dir, wf_name, proj=(u'
     
     label2vol = pe.Node(Label2Vol(label_file=label_file,
      template_file=os.path.join(freesurfer_dir,subject,'mri/T1.mgz'),
-     hemi=label.hemi, proj=proj, identity=identity, subject_id=subject), name='label2vol')
+     hemi=label.hemi, proj=proj, identity=identity, subject_id=subject,
+     vol_label_file='{label_name}-{hemi}.nii.gz'.format(label_name=label.name,hemi=label.hemi)),
+     name='label2vol')
   
    
     if tidy_up:    

@@ -1,19 +1,17 @@
 """
 classes to work with coordinates in native, freesurfer and MNI space
-Author: Ehsan Tadayon, M.D. [sunny.tadayon@gmail.com / stadayon@bidcm.harvard.edu]
 """
 
 import nibabel as nib
 import numpy as np
 import os
 import nipype.pipeline.engine as pe
-from nipype.interfaces.fsl import WarpPoints,  Reorient2Std
+from nipype import Node, Workflow
+from nipype.interfaces.fsl import WarpPoints,  Reorient2Std, FLIRT,FNIRT
 from nipype.interfaces.freesurfer import MRIConvert,Label2Label
 import warnings
 from mne.label import grow_labels
-from nipype import Node, Workflow
 from .freesurfer_files import Surf, FreesurferSurf, Annot
-from nipype.interfaces.fsl import FLIRT,FNIRT
 from .image_manipulation import img2img_register, mri_label2vol, img2img_coord_register
 from scipy.spatial.distance import cdist
 import pandas as pd
@@ -29,17 +27,37 @@ from collections import defaultdict
 class Coords(object):
     
     def __init__(self,coords, img_file, subject=None, coord_type='ras', working_dir=None, **traits):
-        """ coordinate class
+        """ General class to work with coordinates
         
         Parameters
-        ===============
+        -----------
         
-        coords: numpy array of shape: npoints x 3; 
-        img_file: volume file where the coordinates come from
-        subject: name of subject
-        coord_type: either "ras" or "voxel"
-        working_dir: the path to working_dir, where the results will be written to
-        **traits: other traits of the coordinates; the traits size should be equal to the number of npoints
+        coords: numpy array 
+                x,y,z coordinates matrix (npoints x 3)
+        
+        img_file: str
+                path to image file
+        
+        
+        subject: str
+                subject name
+                
+        coord_type: str, {'ras', 'voxel'}
+                coordinate system
+        
+        working_dir: 
+                the path to working directory
+
+        
+        **traits: other traits of the coordinates;
+                 the traits size should be equal to the number of npoints
+                 for instance, one can add "name" or "color" as extra traits for each coordinate
+        
+        
+        Returns
+        --------
+        
+        An object of Coords class
     
         """
         
@@ -116,18 +134,37 @@ class Coords(object):
             self.add_trait(trait,traits[trait])     
                   
     def _to_affine_matrix(self,coords):
+        
+        """
+        returns an affine matrix for the specified coordinates
+        """
         return np.hstack((coords, np.ones((coords.shape[0],1)))).T
         
     
     def add_trait(self,trait,value):
         
         """
-        adds trait; 
+        Adds trait to the object 
         
         Parameters:
-        ===========
-        trait: trait name for instance "color" or "name" or "opacity" etc.
-        value: value of the trait; the size of value should be equal to the number of npoints
+        ------------
+        
+        trait: str
+               name of trait such as "name" or "color" or "opacity" or "network" etc. 
+        
+        value: list or array
+               a list or array of values for the trait
+        
+        
+        Examples:
+        -----------
+        coords = Coords(np.array([23,42,12],[12,45,12]),
+                        img_file = anat_img)
+        coords.add_trait('name',['ldlpfc','lipl'])
+        coords.add_trait('color',[(0,1,0),(1,0,0)])
+        
+        print('coordinates names: ', coords.name)
+        print('coordinates colors: ', coords.color)
         
         """
         
@@ -144,6 +181,7 @@ class Coords(object):
         if trait not in self.traits_list:
             self.traits_list.append(trait)
             
+    
     def get_traits_dict(self):
         
         """
@@ -184,7 +222,23 @@ class Coords(object):
     def map_to_surface(self, surface):
         
         """
-        maps the points to a surface ( either pial or white) or an instance of Surf class. 
+        maps the points to a surface 
+        
+        Parameters:
+        -----------
+        
+        surface: either {'pial','white'} or an instance of Surf
+        
+        Returns:
+        ----------
+        A dictionary with the following keys:
+            
+            vertices: the vertices numbers
+        
+            ras_coord: the mapped ras coordinates
+        
+            ras_tkr_coord: the mapped ras tkr coordinates
+    
         """
         
         if not isinstance(surface,Surf):
@@ -209,28 +263,39 @@ class Coords(object):
         registers the coordinates to another volume. 
         
         Parameters:
-        ======================                         
+        -----------
         
-        1. ref_img: destinateion volume
+        ref_img: 
+               path to reference image
                      
-        2. ref_name: name of the reference subject
+        ref_name: str
+                reference subject name
         
-        3. method: 'linear or nonlinear'
+        method: str, {'linear', 'nonlinear'}
+                     FSL registration method (FLIRT for 'linear' or FNIRT for 'nonlinear')
         
-        4. input_reorient2std: reorient the input image to standard orientation using fslreorient2std
+        input_reorient2std: boolean
+                     reorient moving volume (img_file) to standard space using fslreorient2std
 
-        5. ref_reorient2std: reorient the reference image to standard orientation using fslreorient2std
+        ref_reorient2std: boolean
+                     reorient the reference image to standard orientation using fslreorient2std
         
-        6. wf_base_dir: the base directory where the results will be stored; if not specified, it will look for working_dir of Coords class; 
-           if not found, it will use the currect directory as the base directory
+        wf_base_dir: str
+                     the base directory where the results will be stored; if not specified, it will look for working_dir of Coords class; 
+                     if not found, it will use the currect directory as the base directory
         
-        7. wf_name: name of the working process; the results will be saved under <wf_base_dir>/<wf_name>
+        wf_name: str
+                      name of the working process; the results will be saved under <wf_base_dir>/<wf_name>
         
-        8. linear_reg_file:  registeration file if exists
+        linear_reg_file: str
+                      registeration file if exists
         
-        9. warp_field_file: nonlinear warp field if exits
+        warp_field_file: str
+                      nonlinear warp field if exits
                      
-        10. return_as_array: if True, returns the new coordinates in a numpy ndarray; otherwise, it will return an instance of Coords using ref_img as the image volume
+        10. return_as_array: boolean
+                      if True, returns the new coordinates in a numpy ndarray;
+                      otherwise, it will return an instance of Coords using ref_img as the image volume
         
         """
                      
@@ -264,18 +329,30 @@ class Coords(object):
         subsets the coordinates
         
         Parameters:
-        =============
+        -----------
         
-        1. by (string): which trait to use for subseting the coordinates; for instance you can use "name" to subset the coordinates
+        by: str
+             which trait to use for subseting the coordinates; for instance you can use "name" to subset the coordinates
         
-        2. vals (list): what values to use; for instance you can provide a list of the names
+        vals: list
+             what values to use; for instance you can provide a list of the names
+        
+        Returns:
+        ---------
+        An object of class Coords with all the traits from the original coords instance
+        
+        
+        Examples:
+        ---------
+        coords = Coords(np.array([1,2,3],[3,4,5],[6,7,8]),img_file='anat.nii.gz',name=['c1','c2','c3'],network=['network1','network2','network1'])
+        coords_sub = coords.subset('network',['network1'])
         
         """
         
         idx = []
         for val in vals:
-            x = np.where(self.__getattribute__(by)==val)[0][0]
-            idx.append(x)
+            x = np.where(self.__getattribute__(by)==val)[0].tolist()
+            idx.extend(x)
             
         idx = np.array(idx)
                 
@@ -329,7 +406,14 @@ class _Coord(object):
         for trait,value in kwargs.items():
             self.__setattr__(trait,value)
             self.traits_list.append(trait)
-        
+
+
+
+
+
+#############################################################################################################################
+#                                                          MNICoords class 
+#############################################################################################################################           
         
 class MNICoords(Coords):
     
@@ -347,21 +431,28 @@ class FreesurferCoords(Coords):
     def __init__(self, coords, subject, freesurfer_dir, guess_hemi=True, working_dir=None, coord_type='ras', **traits):
 
         """
-        This class implements methods to transform between coordinates in the Freesurfer space.
+        Coords class when the freesurfer recon-all exists.
         
-        Parameters
-        ==========
-        1. coords: numpy array (n x 3). Coords are RAS coords defined in the native T1 space (rawavg). 
+        Parameters:
+        ----------
         
-        2. subject: Freesurfer subject ID
+        coords: numpy array
+                x,y,z coordinates (npoints x 3)
         
-        3. freesurfer_dir: Freesurfer freesurfer_dir
+        subject: str
+                subject name
         
-        4 .guess_hemi: uses Freesurfer processed volumes to guess which hemisphere each point belongs to. 
+        freesurfer_dir: str 
+                Freesurfer SUBJECTS_DIR
         
-        5. working_dir : the directory where the results will be written to.
+        guess_hemi: boolean
+                for each coordinate, guesses hemisphere
         
-        6. **traits: dictionary containing other traits
+        working_dir : str
+                 the directory where the results will be written to.
+        
+        **traits: 
+                other traits for each coordinate such as "color" or "name"; look at the Coords class
         
         """
         self.freesurfer_dir = freesurfer_dir
@@ -427,6 +518,7 @@ class FreesurferCoords(Coords):
             
    
     def _guess_hemi(self):
+        
         """
         uses Freesurfer voxel coordinate to guess hemisphere.
         """
@@ -451,15 +543,18 @@ class FreesurferCoords(Coords):
         
         
     def set_hemi_manually(self, n, hemi):
+        
         """
         sets hemisphere manually for point n
         """
+        
         self.hemi[n] = hemi
         if n in self.hemi_not_determined:
             self.hemi_not_determined.remove(n)
         
         
     def _read_talaraich_transformation(self):
+       
         """ read talairach transformation from freesurfer talairach.xfm output"""
         
         fname = '{freesurfer_dir}/{subject}/mri/transforms/talairach.xfm'.format(freesurfer_dir=self.freesurfer_dir,
@@ -484,27 +579,30 @@ class FreesurferCoords(Coords):
     
 
     def _get_talairach_coords(self):
+        
         """ transforms the coordinates by talairach transform matrix from freesurfer talairach.xfm"""
+        
         talairach_tr = self._read_talaraich_transformation()
         return np.dot(talairach_tr,self._to_affine_matrix(self.coordinates['ras_coord'])).T[:,:3]
             
     def map_to_annot(self, annot, map_surface='white', inplace=True):
+        
         """ map each point to specified annotation 
         
-        Parameters
+        Parameters:
         -----------
-        annot: string
+        annot: str
             which annotation to use 
         
-        map_surface: string
+        map_surface: str, {'pial','white'}
             the surface that points are projected into to get the vertices
             
-        Returns
+        Returns:
         ---------
-        structures: numpy.ndarray
+        structures: numpy array
             a numpy array of structures ( annotations)
         
-        color: numpy.ndarray
+        color: numpy array
             a numpy array (npoints x 3) that specifies the color based on the annotation provided
             
         """
@@ -585,32 +683,39 @@ class FreesurferCoords(Coords):
         return results
 
         
-    def create_surf_roi(self, extents, surface='white', map_surface='white', annot=None, wf_base_dir=None,
+    def create_surf_roi(self, extents, surface='white', map_surface='white', map_to_annot=None, wf_base_dir=None,
       wf_name='surf_roi', add_vertex_to_name=True):
         
-        """ creates surface ROIs for each stimulation target
+        """ creates surface ROIs for each coordinate point
         
         Parameters
         ----------
-        extents: float or numpy.ndarray
+        extents: float or numpy array
             specifies the raidus of the growing ROI. Either one single number for all the points or a numpy array containing 
             radius for each point
             
-        surface: string
+        surface: str
             specifies which surface to use for growing the ROIs ( white or pial)
             
-        annot: string
-            specifies which annotation to use to assign name and color to each ROI
+        map_to_annot: str
+            specifies which annotation to use to assign name and color to use for ROI labeling
+      
+        wf_base_dir: str
+              workflow base dir
+      
+        wf_name: str
+              workflow name , the results will be saved under <wf_base_dir>/<wf_name>
         
-        out_dir: string
-            output directory
-        
-            
+        add_vertex_to_name: boolean
+              if True, adds the projected vertex number to the ROI name ( in case the ROIs might have similar naming, adding vertex number can help get rid of this issue)
+      
         Returns
         -------
         
-        roi: numpy.ndarray
-            resulting ROIs
+        rois: instances of class of Label 
+      
+        rois_paths: path to the saved labels
+      
         """
         ## wf_base_dir
         if wf_base_dir is None and self.working_dir is not None:
@@ -638,7 +743,7 @@ class FreesurferCoords(Coords):
         
        
         ### get structures and color for labels according to annotation
-        if annot:
+        if map_to_annot:
             structures, colors = self.map_to_annot(annot, map_surface=map_surface)
             for i in range(self.npoints):
                 rois[i].color = colors[i]
@@ -817,8 +922,8 @@ class FreesurferCoords(Coords):
         
         idx = []
         for val in vals:
-            x = np.where(self.__getattribute__(by)==val)[0][0]
-            idx.append(x)
+            x = np.where(self.__getattribute__(by)==val)[0].tolist()
+            idx.extend(x)
             
         idx = np.array(idx)
                 
