@@ -1,18 +1,37 @@
-PyNetStim: Brain Network Stimulation Package
-===============================================
-<img src='./docs/logo.png' style="horizontal-align:middle">
+pynetstim
+=========
 
-pynetstim is a python-based package that aims to create an integrated framework for brain network stimulation, stimulation targeting and engagement, stimulation individualization using multimodal imaging.
+pynetstim is a python module that aims to create an integrated framework for brain network stimulation, stimulation targeting and engagement, visualization, and stimulation individualization using multimodal imaging.
 
-
-<h2> Examples</h2>
-For examples on how to use pynetstim, take a look at the notebooks under examples directory. List of current examples: 
-
-	1. How to use pynetstim to work with files from brainsight for the purpose of statistical analysis and visualization of TMS pulses.
 	
+Dependencies
+=============
 
-<h2> Contact</h2>
-For further information regarding how to use the package,or contributing to the project, please send an email to stadayon@bidmc.harvard.edu
+- python>=3.5
+- Scipy
+- Nilearn
+- Nibabel
+- Pysurfer
+- Pandas
+- Nipype
+- MNE
+- Mayavi
+
+
+Install
+========
+
+Please make sure you have installed all the dependencies listed above. pynetstim can ben installed by running the following command: 
+
+```
+pip install -U --user pynetstim
+```
+
+
+
+
+
+
 
 
 
