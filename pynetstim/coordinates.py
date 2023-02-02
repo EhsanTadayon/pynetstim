@@ -608,7 +608,7 @@ class FreesurferCoords(Coords):
         """
         
         if len(self.hemi_not_determined)>0:
-            raise ValueError('Use set_hemi_manually to assign hemiphere to these points: %s'%(','.join(str(self.hemi_not_determined))))
+            raise ValueError('Use set_hemi_manually to assign hemiphere to these points: %s'%(','.join([str(i) for i in self.hemi_not_determined])))
         
      
         lh_annot = Annot('lh', annot, self.subject, self.freesurfer_dir)
