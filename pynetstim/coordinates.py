@@ -530,6 +530,10 @@ class FreesurferCoords(Coords):
                 self.hemi.append('lh')   
             elif self.coordinates['fsvoxel_coord'][s,0] < 128:
                 self.hemi.append('rh')   
+            elif self.coordinates['ras_coord'][s,0] > 0:
+                self.hemi.append('rh')
+            elif self.coordinates['ras_coord'][s,0] < 0:
+                self.hemi.append('lh')
             else:
                 w = """Could not determine hemiphere for point {x},{y},{z}. Right hemiphere has been chosen arbitrarily for this point.
                  Manually set the hemiphere for this point by calling set_hemi_manually!"""
