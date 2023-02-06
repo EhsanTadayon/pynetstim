@@ -428,7 +428,7 @@ class MNICoords(Coords):
 #############################################################################################################################           
 class FreesurferCoords(Coords):
 
-    def __init__(self, coords, subject, freesurfer_dir, guess_hemi=True, working_dir=None, coord_type='ras', **traits):
+    def __init__(self, coords, subject, freesurfer_dir, guess_hemi=True, use_ras_to_guess=False, allow_ignore_hemi_label=False, working_dir=None, coord_type='ras', **traits):
 
         """
         Coords class when the freesurfer recon-all exists.
@@ -460,6 +460,8 @@ class FreesurferCoords(Coords):
         self.working_dir = working_dir
         coords = np.atleast_2d(coords)
         self.coord_type = coord_type
+        self.use_ras_to_guess=use_ras_to_guess
+        self.allow_ignore_hemi_label=allow_ignore_hemi_label
         
         
         ## setting image file names
@@ -530,10 +532,18 @@ class FreesurferCoords(Coords):
                 self.hemi.append('lh')   
             elif self.coordinates['fsvoxel_coord'][s,0] < 128:
                 self.hemi.append('rh')   
-            elif self.coordinates['ras_coord'][s,0] > 0:
+            elif self.coordinates['ras_coord'][s,0] > 0 and self.use_ras_to_guess:
                 self.hemi.append('rh')
-            elif self.coordinates['ras_coord'][s,0] < 0:
+            elif self.coordinates['ras_coord'][s,0] < 0 and self.use_ras_to_guess:
                 self.hemi.append('lh')
+            elif self.allow_ignore_hemi_label:
+                x = self.coordinates['ras_coords'][s,0]
+                y = self.coordinates['ras_coords'][s,1]
+                z = self.coordinates['ras_coords'][s,2]
+
+                w = f"Could not determine hemisphere for point {x}, {y}, {z}. Set label to 'ignore'. You can use self.set_hemi_manually to manually set the hemisphere"
+                warnings.warn(w)
+                self.hemi.append('ignore')
             else:
                 w = """Could not determine hemiphere for point {x},{y},{z}. Right hemiphere has been chosen arbitrarily for this point.
                  Manually set the hemiphere for this point by calling set_hemi_manually!"""
