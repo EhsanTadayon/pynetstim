@@ -419,7 +419,7 @@ class MNICoords(Coords):
     
     def __init__(self,coords, mni_template='MNI152_T1_2mm.nii.gz',mni_directory=os.environ['FSLDIR']):
         
-        mni_file = os.path.join(mni_directory,mni_tmeplate)
+        mni_file = os.path.join(mni_directory,mni_template)
         Coords.__init__(self,coords,mni_file)
         
             
@@ -527,6 +527,9 @@ class FreesurferCoords(Coords):
         
         self.hemi = []
         self.hemi_not_determined = []
+        if self.allow_ignore_hemi_label:
+            self.ignore = []
+
         for s in np.arange(self.npoints):
             if self.coordinates['fsvoxel_coord'][s,0]> 128: 
                 self.hemi.append('lh')   
@@ -541,9 +544,12 @@ class FreesurferCoords(Coords):
                 y = self.coordinates['ras_coord'][s,1]
                 z = self.coordinates['ras_coord'][s,2]
 
-                w = f"Could not determine hemisphere for point {x}, {y}, {z}. Set label to 'ignore'. You can use self.set_hemi_manually to manually set the hemisphere"
+                ras_hemi = 'rh' if self.coordinates['ras_coord'][s,0] > 0 else 'lh'
+
+                w = f"Could not determine hemisphere for point {x}, {y}, {z}. Set label to {ras_hemi}. You can use self.set_hemi_manually to manually set the hemisphere"
                 warnings.warn(w)
-                self.hemi.append('ignore')
+                self.hemi.append(ras_hemi)
+                self.ignore.append(s)
             else:
                 w = """Could not determine hemiphere for point {x},{y},{z}. Right hemiphere has been chosen arbitrarily for this point.
                  Manually set the hemiphere for this point by calling set_hemi_manually!"""
@@ -634,7 +640,6 @@ class FreesurferCoords(Coords):
         mapped_vertices_indices = self.map_to_surface(surface=map_surface)['vertices']
         lh_mapped_vertices_indices = mapped_vertices_indices[self.hemi=='lh']
         rh_mapped_vertices_indices = mapped_vertices_indices[self.hemi=='rh']
-        
         
         if np.sum(self.hemi=='lh')>0:
             lh_colors, lh_structures = lh_annot.get_vertices_colors(lh_mapped_vertices_indices),lh_annot.get_vertices_names(lh_mapped_vertices_indices)
