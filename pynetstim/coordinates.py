@@ -848,7 +848,7 @@ class FreesurferCoords(Coords):
 
         ### extents can be one number or an array, make it an array if it is a number
         if type(extents)==list or type(extents)==np.ndarray:
-            assert(len(extents)==self.npoints,'extents can be either one number or a list where len(extents) is equal to number of points')
+            assert len(extents)==self.npoints,'extents can be either one number or a list where len(extents) is equal to number of points'
             extents = map(int,extents)
         else:
             extents = [int(extents)]*self.npoints
