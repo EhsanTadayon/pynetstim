@@ -1,2 +1,0 @@
-mri_label2label --hemi lh --trglabel M1_5mm_pial_88095-lh_converted.label --regmethod surface --srclabel /Users/ehsantadayon/Dropbox/Projects/Broad/projects/pynetstim/examples/working_with_brainsight/to_fsaverage/creating_rois/M1_5mm_pial_88095-lh.label --srcsubject example_subject --trgsubject fsaverage
-

@@ -1,1 +1,0 @@
-mri_em_register -rusage /net/rcss9/srv/export/ncf_pascual-leone_cnbs/share_root/lab/broad/baseline/subjects/Broad_82_YZ/touch/rusage.mri_em_register.dat -uns 3 -mask brainmask.mgz nu.mgz /ncf/nrg/sw/apps/freesurfer/6.0.0/average/RB_all_2016-05-10.vc700.gca transforms/talairach.lta

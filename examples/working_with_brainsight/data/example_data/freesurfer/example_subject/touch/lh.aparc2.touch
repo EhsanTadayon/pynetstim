@@ -1,1 +1,0 @@
-mris_ca_label -l ../label/lh.cortex.label -aseg ../mri/aseg.presurf.mgz -seed 1234 Broad_82_YZ lh ../surf/lh.sphere.reg /ncf/nrg/sw/apps/freesurfer/6.0.0/average/lh.DKTaparc.atlas.acfb40.noaparc.i12.2016-08-02.gcs ../label/lh.aparc.DKTatlas.annot

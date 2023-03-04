@@ -1,2 +1,0 @@
-mri_label2label --hemi rh --trglabel C_DMN_2mm_pial_21622-rh_converted.label --regmethod surface --srclabel /Users/ehsantadayon/Dropbox/Projects/Broad/projects/pynetstim/examples/working_with_brainsight/to_fsaverage/creating_rois/C_DMN_2mm_pial_21622-rh.label --srcsubject example_subject --trgsubject fsaverage
-
