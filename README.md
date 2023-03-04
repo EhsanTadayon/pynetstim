@@ -1,8 +1,9 @@
 pynetstim
 =========
 
-pynetstim is a python module that aims to create an integrated framework for brain network stimulation, stimulation targeting and engagement, visualization, and stimulation individualization using multimodal imaging.
+pynetstim is a python-based package that aims to create an integrated framework for circuit-based neuromodulation, neuroanatomical- and functional-based stimulation targeting, and stimulation individualization using multimodal neuroimaging.
 
+![pynetstim](./docs/pynetstim_orig.png)
 	
 Dependencies
 =============
@@ -26,9 +27,6 @@ Please make sure you have installed all the dependencies listed above. pynetstim
 ```
 pip install -U --user pynetstim
 ```
-
-
-
 
 
 
